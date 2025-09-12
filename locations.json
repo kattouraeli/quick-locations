@@ -1,0 +1,17 @@
+{
+  "version": "1.0.2",
+  "updated": "2025-09-12",
+  "locations": [
+    { "name": "Spinneys", "area": "Jnah",      "query": "Spinneys Jnah Lebanon" },
+    { "name": "Spinneys", "area": "Mtayleb",   "query": "Spinneys Mtayleb Lebanon" },
+    { "name": "Spinneys", "area": "Hamra",     "query": "Spinneys Hamra Lebanon" },
+    { "name": "Spinneys", "area": "Hazmieh",   "query": "Spinneys Hazmieh Lebanon" },
+    { "name": "Spinneys", "area": "Dbayeh",    "query": "Spinneys Dbayeh Lebanon" },
+
+    { "name": "Chedid Food", "area": "Mtayleb", "query": "Chedid Food Mtayleb Lebanon" },
+
+    { "name": "Grab & Go", "area": "Achrafieh", "query": "Grab and Go Achrafieh Lebanon" },
+    { "name": "Grab & Go", "area": "Antelias",  "query": "Grab and Go Antelias Lebanon" },
+    { "name": "Grab & Go", "area": "Jounieh",   "query": "Grab and Go Jounieh Lebanon" }
+  ]
+}

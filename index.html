@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Quick Locations • Curvea</title>
+  <meta name="description" content="Fast search for saved delivery locations. One tap opens Google Maps." />
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0B0F13">
+  <!-- iOS add-to-home support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            base: { 900:'#0B0F13', 800:'#10161C', 700:'#141C24', 600:'#1B2430' },
+            brand:{ 600:'#3DAAFB', 700:'#2696E4', 800:'#1F7CC0' },
+            accent:{ 500:'#A2F26D' }
+          },
+          boxShadow: {
+            card: '0 8px 28px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.05)'
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Fuse.js -->
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+
+  <style>
+    .tap{min-height:52px}
+    :root{--safe-top:env(safe-area-inset-top,0);--safe-bottom:env(safe-area-inset-bottom,0)}
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(10px)}
+    .ring-soft{box-shadow: inset 0 0 0 1px rgba(255,255,255,.08)}
+    .hero{
+      background:
+        radial-gradient(1200px 600px at 50% -220px, rgba(61,170,251,.28), transparent 70%),
+        linear-gradient(180deg,#0B0F13 0%, #10161C 60%, #0B0F13 100%);
+    }
+    .floating{position:fixed; right:16px; bottom:calc(16px + var(--safe-bottom)); z-index:50}
+    .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(24px + var(--safe-bottom)); z-index:60}
+  </style>
+</head>
+<body class="h-full bg-base-900 text-white">
+  <main class="min-h-full">
+    <!-- HEADER -->
+    <header class="sticky top-0 z-30 hero border-b border-white/10">
+      <div class="mx-auto max-w-xl px-4 pt-[calc(16px+var(--safe-top))] pb-4">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl glass ring-soft flex items-center justify-center">
+            <!-- pin icon -->
+            <svg class="h-6 w-6 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-width="1.5" d="M12 22s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"/>
+              <circle cx="12" cy="11" r="2.5" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h1 class="text-2xl font-semibold tracking-tight">Quick Locations</h1>
+            <p id="meta" class="text-xs text-white/70">Loading…</p>
+          </div>
+          <button id="reloadBtn" class="tap px-3 rounded-xl glass ring-soft text-sm">Reload</button>
+        </div>
+
+        <!-- Search -->
+        <div class="mt-3">
+          <label for="q" class="sr-only">Search</label>
+          <div class="flex gap-2">
+            <div class="flex-1 relative">
+              <input id="q" autocomplete="off" inputmode="search"
+                     placeholder="Search: spinis jnah / mtayleb / grab go…"
+                     class="tap w-full rounded-xl px-4 pr-10 glass ring-soft placeholder:text-white/45 outline-none focus:ring-2 focus:ring-brand-600/40">
+              <svg class="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/45 pointer-events-none"
+                   viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="11" cy="11" r="7" stroke-width="1.5"/><path d="M20 20l-3.2-3.2" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <button id="clearBtn" class="tap px-3 rounded-xl glass ring-soft">✕</button>
+          </div>
+          <div class="mt-2 text-[11px] text-white/65 flex items-center gap-2">
+            <span class="inline-flex items-center gap-1 rounded-lg px-2 py-1 glass ring-soft">
+              <svg class="h-4 w-4 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="1.5" d="M12 3l1.5 3.8L17 8.5l-3.5 1.7L12 14l-1.5-3.8L7 8.5l3.5-1.7L12 3Z"/></svg>
+              Typos & Franco-Arab OK
+            </span>
+            <span id="installedBadge" class="hidden inline-flex items-center gap-1 rounded-lg px-2 py-1 bg-emerald-500/15 ring-soft text-emerald-300">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="1.8" d="M20 6 9 17l-5-5"/></svg>
+              Installed
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- LIST -->
+    <section class="mx-auto max-w-xl px-4 pb-[calc(90px+var(--safe-bottom))]">
+      <div id="list" class="pt-4 space-y-3">
+        <!-- skeleton -->
+        <template id="skeleton">
+          <article class="rounded-2xl glass ring-soft p-3 shadow-card animate-pulse">
+            <div class="h-4 w-48 bg-white/10 rounded"></div>
+            <div class="flex gap-2 mt-3">
+              <div class="h-10 w-28 bg-white/10 rounded-xl"></div>
+              <div class="h-10 w-20 bg-white/10 rounded-xl"></div>
+            </div>
+          </article>
+        </template>
+      </div>
+    </section>
+
+    <!-- FLOATING ACTIONS -->
+    <div class="floating flex flex-col items-end gap-2">
+      <button id="installBtn" class="hidden tap px-4 py-2 rounded-2xl glass ring-soft shadow-card text-sm">
+        Install app
+      </button>
+      <button id="aboutBtn" class="tap px-3 py-2 rounded-2xl glass ring-soft shadow-card text-sm">
+        Curvea
+      </button>
+    </div>
+
+    <!-- ABOUT -->
+    <dialog id="aboutSheet" class="w-full max-w-xl bg-base-800 text-white rounded-t-2xl open:animate-[slideUp_.2s_ease]">
+      <form method="dialog" class="p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">About</h2>
+          <button class="tap px-3 rounded-xl glass ring-soft">Close</button>
+        </div>
+        <p class="text-sm text-white/80 mt-3">
+          Built by <strong>Curvea</strong>. Installable on Android, works offline. Tap a card to open Google Maps. “Copy” copies the link.
+        </p>
+        <ol class="text-xs text-white/65 mt-3 list-decimal pl-5 space-y-1">
+          <li>Open this page once online so it caches.</li>
+          <li>If the <em>Install app</em> button is visible, tap it. If not: Chrome menu → <strong>Add to Home screen</strong>.</li>
+          <li>After installing, open from the home screen for full-screen app mode.</li>
+        </ol>
+        <div class="mt-3 text-[12px] text-white/60" id="aboutMeta"></div>
+      </form>
+    </dialog>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast hidden">
+      <div class="rounded-xl glass ring-soft px-3 py-2 text-sm shadow-card">Done</div>
+    </div>
+  </main>
+
+  <script>
+    // ---------- Helpers ----------
+    const JSON_URL = 'locations.json';
+    const listEl = document.getElementById('list');
+    const q = document.getElementById('q');
+    const clearBtn = document.getElementById('clearBtn');
+    const metaEl = document.getElementById('meta');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const aboutBtn = document.getElementById('aboutBtn');
+    const aboutSheet = document.getElementById('aboutSheet');
+    const aboutMeta = document.getElementById('aboutMeta');
+    const installBtn = document.getElementById('installBtn');
+    const installedBadge = document.getElementById('installedBadge');
+    const toast = document.getElementById('toast');
+
+    function showToast(msg='Done'){
+      toast.querySelector('div').textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(()=>toast.classList.add('hidden'), 1300);
+    }
+
+    // Normalization for typo/Franco-Arab tolerant search
+    function normalize(s=""){
+      let x=(s||"").toString().toLowerCase().trim();
+      x=x.replace(/2/g,'a').replace(/3/g,'a').replace(/5/g,'kh').replace(/6/g,'t').replace(/7/g,'h').replace(/8/g,'q').replace(/9/g,'s');
+      x=x.replace(/[\W_]+/g,'').replace(/([a-z])\1+/g,'$1');
+      const vowelless=x.replace(/[aeiou]/g,''); return {base:x, vowelless};
+    }
+    function makeKey(name, area){
+      const a=normalize(name||''), b=normalize(area||''), c=normalize((name||'')+(area||''));
+      return [a.base,a.vowelless,b.base,b.vowelless,c.base,c.vowelless].filter(Boolean).join(' ');
+    }
+    function escapeHtml(s=""){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+    function mapsUrl(item){
+      if (item.link) return item.link;
+      const dest = (item.query || `${item.name} ${item.area||''}`).trim();
+      return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`;
+    }
+
+    // ---------- Card ----------
+    function card(item){
+      const label = item.area ? `${escapeHtml(item.name)} <span class="opacity-80">(${escapeHtml(item.area)})</span>` : escapeHtml(item.name);
+      const href = mapsUrl(item);
+      const canCopy = Boolean(item.link);
+      return `
+        <article class="rounded-2xl glass ring-soft p-3 shadow-card">
+          <div class="flex items-start gap-3">
+            <div class="h-10 w-10 rounded-xl glass ring-soft flex items-center justify-center shrink-0">
+              <svg class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l1.5 3.8L17 8.5l-3.5 1.7L12 14l-1.5-3.8L7 8.5l3.5-1.7L12 3Z" stroke-width="1.5"/></svg>
+            </div>
+            <div class="flex-1">
+              <div class="text-base font-semibold leading-6">${label}</div>
+              <div class="mt-3 flex gap-2">
+                <a href="${href}" target="_blank" rel="noopener"
+                   class="tap inline-flex items-center justify-center px-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">
+                  Open in Maps
+                </a>
+                <button ${canCopy ? '' : 'disabled'}
+                        data-copy="${canCopy ? escapeHtml(item.link) : ''}"
+                        class="tap inline-flex items-center justify-center px-3 rounded-xl glass ring-soft text-white/90 copyBtn">
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    // ---------- Data + Search ----------
+    let locations = [];
+    let fuse = null;
+
+    function initFuse(){
+      locations.forEach(loc => { loc._key = makeKey(loc.name, loc.area); });
+      fuse = new Fuse(locations, {
+        keys:[{name:'_key',weight:.75},{name:'name',weight:.15},{name:'area',weight:.10}],
+        threshold:.35, ignoreLocation:true
+      });
+    }
+
+    function render(items){
+      if(!items?.length){
+        listEl.innerHTML = `<div class="text-center text-white/70 py-12">No locations yet. Add entries to <span class="font-semibold">locations.json</span>.</div>`;
+        return;
+      }
+      const sorted = items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'') || (a.area||'').localeCompare(b.area||''));
+      listEl.innerHTML = sorted.map(card).join('');
+      listEl.querySelectorAll('.copyBtn').forEach(btn=>{
+        btn.addEventListener('click', async () => {
+          const text = btn.getAttribute('data-copy');
+          if(!text) return;
+          try{ await navigator.clipboard.writeText(text); showToast('Link copied'); }
+          catch{ showToast('Copy failed'); }
+        });
+      });
+    }
+
+    function doSearch(){
+      const term=(q.value||'').trim();
+      if(!term){ render(locations); return; }
+      const n=normalize(term);
+      const A=fuse.search(n.base).map(r=>r.item);
+      const B=fuse.search(n.vowelless).map(r=>r.item);
+      const seen=new Set(); const merged=[...A,...B].filter(x=>!seen.has(x)&&seen.add(x));
+      render(merged);
+    }
+
+    function showSkeletons(n=4){
+      const tpl=document.getElementById('skeleton');
+      listEl.innerHTML=''; for(let i=0;i<n;i++) listEl.appendChild(tpl.content.cloneNode(true));
+    }
+
+    async function loadJson({bust=false} = {}){
+      showSkeletons();
+      try{
+        const url = bust ? `${JSON_URL}?t=${Date.now()}` : JSON_URL;
+        const res = await fetch(url, { cache:'no-store' });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        locations = Array.isArray(data) ? data : (data.locations || []);
+        initFuse(); render(locations);
+        const updated=(data.updated||'')?.trim?.()||'';
+        const version=(data.version||'')?.trim?.()||'';
+        const meta=[updated?`Updated: ${updated}`:'', version?`• v${version}`:'', `• ${locations.length} locations`].filter(Boolean).join(' ');
+        metaEl.textContent=meta; aboutMeta.textContent=meta;
+      }catch(e){
+        metaEl.textContent='Failed to load locations.json';
+        listEl.innerHTML = `<div class="text-center text-rose-300 py-12">Could not load <span class="font-semibold">locations.json</span>. Check path and JSON validity.</div>`;
+      }
+    }
+
+    // ---------- Events ----------
+    let debounce;
+    q.addEventListener('input', ()=>{ clearTimeout(debounce); debounce=setTimeout(doSearch,80); });
+    clearBtn.addEventListener('click', ()=>{ q.value=''; doSearch(); q.focus(); });
+    reloadBtn.addEventListener('click', ()=>loadJson({bust:true}));
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) doSearch(); });
+    aboutBtn.addEventListener('click', ()=>aboutSheet.showModal());
+
+    // ---------- PWA: install FAB logic ----------
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) {
+      installedBadge.classList.remove('hidden');
+    }
+
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!isStandalone) installBtn.classList.remove('hidden');
+    });
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        installBtn.classList.add('hidden');
+        installedBadge.classList.remove('hidden');
+        showToast('App installed');
+      }
+      deferredPrompt = null;
+    });
+    window.addEventListener('appinstalled', () => {
+      installBtn.classList.add('hidden');
+      installedBadge.classList.remove('hidden');
+      showToast('App installed');
+    });
+
+    // ---------- Service worker (offline) ----------
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./service-worker.js');
+    }
+
+    // First load
+    loadJson();
+  </script>
+</body>
+</html>
