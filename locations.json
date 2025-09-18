@@ -1,17 +1,25 @@
 {
-  "version": "1.0.2",
-  "updated": "2025-09-12",
+  "version": "1.0.0",
+  "updated": "2025-09-18",
   "locations": [
-    { "name": "Spinneys", "area": "Jnah",      "query": "Spinneys Jnah Lebanon" },
-    { "name": "Spinneys", "area": "Mtayleb",   "query": "Spinneys Mtayleb Lebanon" },
-    { "name": "Spinneys", "area": "Hamra",     "query": "Spinneys Hamra Lebanon" },
-    { "name": "Spinneys", "area": "Hazmieh",   "query": "Spinneys Hazmieh Lebanon" },
-    { "name": "Spinneys", "area": "Dbayeh",    "query": "Spinneys Dbayeh Lebanon" },
+    { "name": "Spinneys", "area": "Mar Mitr | Ashrafieh",     "link": "https://maps.app.goo.gl/djNfMcUQzp5bCY6c6" },
+    { "name": "Spinneys", "area": "Hazmieh",   "link": "https://maps.app.goo.gl/9TpRpt13583PPw827" },
+    { "name": "Spinneys", "area": "Dbayeh | ABC",    "link": "https://maps.app.goo.gl/xSrjDjQhSdSYizVv6" },
+    { "name": "Spinneys", "area": "Dbayeh | 24/24",    "link": "https://maps.app.goo.gl/ZyqNvYELZXNuT4yZ6" },
 
-    { "name": "Chedid Food", "area": "Mtayleb", "query": "Chedid Food Mtayleb Lebanon" },
+    { "name": "Chedid Food", "area": "Mtayleb", "link": "https://maps.app.goo.gl/8EruFeoQnbLaNfzu8" },
 
-    { "name": "Grab & Go", "area": "Achrafieh", "query": "Grab and Go Achrafieh Lebanon" },
-    { "name": "Grab & Go", "area": "Antelias",  "query": "Grab and Go Antelias Lebanon" },
-    { "name": "Grab & Go", "area": "Jounieh",   "query": "Grab and Go Jounieh Lebanon" }
+    { "name": "Grab & Go", "area": "Hazmieh | Mar Takla",   "link": "https://maps.app.goo.gl/S8mrbA3Cu2NwLd5A9" },
+
+    { "name": "Faddoul", "area": "Sarba",      "link": "https://maps.app.goo.gl/Vx5DQieu2JFwJkdAA" },
+
+    { "name": "Charcutier Aoun", "area": "Sed El Boshrieh | Dekwaneh",      "link": "https://maps.app.goo.gl/CTTcjEm1KAbe8h4j8" },
+
+    { "name": "Mokhtabar", "area": "Mar Roukoz",      "link": "https://maps.app.goo.gl/X1fp681tqMETHRgK8" },
+
+    { "name": "Fahed", "area": "Furn El Chebbak",      "link": "https://maps.app.goo.gl/TohkVrnyqiAXpsf37" },
+    
+    { "name": "Storium Saliba", "area": "Cornet Chehwan",      "link": "https://maps.app.goo.gl/EkwCQPJpZ19FAXrL8" }
+
   ]
-}
+  }
