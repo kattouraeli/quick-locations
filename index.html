@@ -5,46 +5,59 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Quick Locations • Curvea</title>
   <meta name="description" content="Fast search for saved delivery locations. One tap opens Google Maps." />
+
+  <!-- PWA basics (no offline) -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0B0F13">
-  <!-- iOS add-to-home support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Locations">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-  <!-- Tailwind (CDN) -->
+  <!-- Typeface -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind & Fuse -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
+          fontFamily: { sans: ['Inter','ui-sans-serif','system-ui','-apple-system','Segoe UI','Roboto','Helvetica Neue','Arial'] },
           colors: {
-            base: { 900:'#0B0F13', 800:'#10161C', 700:'#141C24', 600:'#1B2430' },
-            brand:{ 600:'#3DAAFB', 700:'#2696E4', 800:'#1F7CC0' },
-            accent:{ 500:'#A2F26D' }
+            base:  { 900:'#0B0F13', 800:'#10161C', 700:'#141C24', 600:'#1B2430', 500:'#223042' },
+            brand: { 500:'#69C5FF', 600:'#3DAAFB', 700:'#2696E4', 800:'#1F7CC0' },
+            lime:  { 500:'#A2F26D' }
           },
           boxShadow: {
-            card: '0 8px 28px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.05)'
+            card: '0 10px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05)'
           }
         }
       }
     }
   </script>
-  <!-- Fuse.js -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
 
   <style>
-    .tap{min-height:52px}
     :root{--safe-top:env(safe-area-inset-top,0);--safe-bottom:env(safe-area-inset-bottom,0)}
+    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial}
+    .tap{min-height:52px}
     .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(10px)}
-    .ring-soft{box-shadow: inset 0 0 0 1px rgba(255,255,255,.08)}
+    .ring-soft{box-shadow: inset 0 0 0 1px rgba(255,255,255,.1)}
     .hero{
       background:
-        radial-gradient(1200px 600px at 50% -220px, rgba(61,170,251,.28), transparent 70%),
+        radial-gradient(900px 420px at 20% -160px, rgba(61,170,251,.25), transparent 70%),
+        radial-gradient(900px 420px at 80% -160px, rgba(162,242,109,.18), transparent 70%),
         linear-gradient(180deg,#0B0F13 0%, #10161C 60%, #0B0F13 100%);
     }
-    .floating{position:fixed; right:16px; bottom:calc(16px + var(--safe-bottom)); z-index:50}
-    .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(24px + var(--safe-bottom)); z-index:60}
+    .floating{position:fixed; right:16px; bottom:calc(16px + var(--safe-bottom)); z-index:60}
+    .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(24px + var(--safe-bottom)); z-index:70}
+    .pressable:active{transform:translateY(1px); transition:transform .04s}
+    .chip{background:rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08)}
+    .cardAccent{position:absolute; left:0; top:0; bottom:0; width:4px; border-top-left-radius:16px; border-bottom-left-radius:16px}
+    .scrollpad{padding-bottom:calc(110px + var(--safe-bottom))}
   </style>
 </head>
 <body class="h-full bg-base-900 text-white">
@@ -53,42 +66,44 @@
     <header class="sticky top-0 z-30 hero border-b border-white/10">
       <div class="mx-auto max-w-xl px-4 pt-[calc(16px+var(--safe-top))] pb-4">
         <div class="flex items-center gap-3">
-          <div class="h-10 w-10 rounded-xl glass ring-soft flex items-center justify-center">
-            <!-- pin icon -->
-            <svg class="h-6 w-6 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path stroke-width="1.5" d="M12 22s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"/>
-              <circle cx="12" cy="11" r="2.5" stroke-width="1.5"/>
-            </svg>
+          <div class="h-11 w-11 rounded-xl glass ring-soft flex items-center justify-center">
+            <img src="icons/icon-512.png" alt="" class="h-10 w-10 opacity-90" />
           </div>
           <div class="flex-1">
-            <h1 class="text-2xl font-semibold tracking-tight">Quick Locations</h1>
-            <p id="meta" class="text-xs text-white/70">Loading…</p>
+            <h1 class="text-[26px] font-semibold leading-6 tracking-tight">Quick Locations</h1>
+            <p id="meta" class="text-xs text-white/70 mt-1">Loading…</p>
+            <p class="text-[11px] text-white/45 mt-1">
+              <button id="aboutBtn" class="underline decoration-dotted hover:text-white/70">Designed by Curvea</button>
+            </p>
           </div>
-          <button id="reloadBtn" class="tap px-3 rounded-xl glass ring-soft text-sm">Reload</button>
+          <button id="reloadBtn" class="tap px-3 rounded-xl glass ring-soft text-sm pressable">Reload</button>
         </div>
 
-        <!-- Search -->
+        <!-- Search + Quick Filters -->
         <div class="mt-3">
-          <label for="q" class="sr-only">Search</label>
-          <div class="flex gap-2">
+          <div class="flex gap-2 items-stretch">
             <div class="flex-1 relative">
               <input id="q" autocomplete="off" inputmode="search"
                      placeholder="Search: spinis jnah / mtayleb / grab go…"
-                     class="tap w-full rounded-xl px-4 pr-10 glass ring-soft placeholder:text-white/45 outline-none focus:ring-2 focus:ring-brand-600/40">
+                     class="tap w-full rounded-xl px-4 pr-10 glass ring-soft placeholder:text-white/45 outline-none focus:ring-2 focus:ring-brand-600/40" />
               <svg class="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/45 pointer-events-none"
-                   viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" stroke-width="1.5"/><path d="M20 20l-3.2-3.2" stroke-width="1.5"/>
               </svg>
             </div>
-            <button id="clearBtn" class="tap px-3 rounded-xl glass ring-soft">✕</button>
+            <button id="clearBtn" class="tap px-3 rounded-xl glass ring-soft pressable" aria-label="Clear search">✕</button>
           </div>
+
+          <!-- Chips auto-filled from top brands -->
+          <div id="chips" class="mt-3 flex flex-wrap gap-2"></div>
+
           <div class="mt-2 text-[11px] text-white/65 flex items-center gap-2">
             <span class="inline-flex items-center gap-1 rounded-lg px-2 py-1 glass ring-soft">
-              <svg class="h-4 w-4 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="1.5" d="M12 3l1.5 3.8L17 8.5l-3.5 1.7L12 14l-1.5-3.8L7 8.5l3.5-1.7L12 3Z"/></svg>
+              <svg class="h-4 w-4 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="1.5" d="M12 3l1.5 3.8L17 8.5l-3.5 1.7L12 14l-1.5-3.8L7 8.5l3.5-1.7L12 3Z"/></svg>
               Typos & Franco-Arab OK
             </span>
             <span id="installedBadge" class="hidden inline-flex items-center gap-1 rounded-lg px-2 py-1 bg-emerald-500/15 ring-soft text-emerald-300">
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="1.8" d="M20 6 9 17l-5-5"/></svg>
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="1.8" d="M20 6 9 17l-5-5"/></svg>
               Installed
             </span>
           </div>
@@ -96,12 +111,15 @@
       </div>
     </header>
 
-    <!-- LIST -->
-    <section class="mx-auto max-w-xl px-4 pb-[calc(90px+var(--safe-bottom))]">
-      <div id="list" class="pt-4 space-y-3">
+    <!-- CONTENT -->
+    <section class="mx-auto max-w-xl px-4 scrollpad">
+      <div id="resultsInfo" class="pt-4 text-xs text-white/60"></div>
+
+      <div id="list" class="pt-2 space-y-3">
         <!-- skeleton -->
         <template id="skeleton">
-          <article class="rounded-2xl glass ring-soft p-3 shadow-card animate-pulse">
+          <article class="rounded-2xl glass ring-soft p-3 shadow-card animate-pulse relative">
+            <div class="cardAccent" style="background:linear-gradient(180deg,#3DAAFB,#1F7CC0)"></div>
             <div class="h-4 w-48 bg-white/10 rounded"></div>
             <div class="flex gap-2 mt-3">
               <div class="h-10 w-28 bg-white/10 rounded-xl"></div>
@@ -112,14 +130,12 @@
       </div>
     </section>
 
-    <!-- FLOATING ACTIONS -->
+    <!-- FLOATING: Install + Top -->
     <div class="floating flex flex-col items-end gap-2">
-      <button id="installBtn" class="hidden tap px-4 py-2 rounded-2xl glass ring-soft shadow-card text-sm">
+      <button id="installBtn" class="tap px-4 py-2 rounded-2xl glass ring-soft shadow-card text-sm pressable">
         Install app
       </button>
-      <button id="aboutBtn" class="tap px-3 py-2 rounded-2xl glass ring-soft shadow-card text-sm">
-        Curvea
-      </button>
+      <button id="toTopBtn" class="hidden tap px-3 py-2 rounded-2xl glass ring-soft shadow-card text-sm pressable" aria-label="Scroll to top">↑ Top</button>
     </div>
 
     <!-- ABOUT -->
@@ -127,17 +143,27 @@
       <form method="dialog" class="p-4">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-semibold">About</h2>
-          <button class="tap px-3 rounded-xl glass ring-soft">Close</button>
+          <button class="tap px-3 rounded-xl glass ring-soft pressable">Close</button>
         </div>
         <p class="text-sm text-white/80 mt-3">
-          Built by <strong>Curvea</strong>. Installable on Android, works offline. Tap a card to open Google Maps. “Copy” copies the link.
+          Designed by <strong>Curvea</strong>. Installable on Android. Tap anywhere on a card to open Google Maps. “Copy” copies the link.
         </p>
         <ol class="text-xs text-white/65 mt-3 list-decimal pl-5 space-y-1">
-          <li>Open this page once online so it caches.</li>
-          <li>If the <em>Install app</em> button is visible, tap it. If not: Chrome menu → <strong>Add to Home screen</strong>.</li>
-          <li>After installing, open from the home screen for full-screen app mode.</li>
+          <li>Tap <em>Install app</em> (or Chrome menu → <strong>Install app</strong>).</li>
+          <li>Open from your home screen for full-screen app mode.</li>
         </ol>
         <div class="mt-3 text-[12px] text-white/60" id="aboutMeta"></div>
+      </form>
+    </dialog>
+
+    <!-- INSTALL HELP -->
+    <dialog id="installHelp" class="w-full max-w-xl bg-base-800 text-white rounded-t-2xl open:animate-[slideUp_.2s_ease]">
+      <form method="dialog" class="p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Install help</h2>
+          <button class="tap px-3 rounded-xl glass ring-soft pressable">Close</button>
+        </div>
+        <div id="installHelpBody" class="text-sm text-white/80 mt-3 space-y-2"></div>
       </form>
     </dialog>
 
@@ -148,9 +174,11 @@
   </main>
 
   <script>
-    // ---------- Helpers ----------
+    // ------------------------------ DOM refs
     const JSON_URL = 'locations.json';
     const listEl = document.getElementById('list');
+    const chipsEl = document.getElementById('chips');
+    const resultsInfo = document.getElementById('resultsInfo');
     const q = document.getElementById('q');
     const clearBtn = document.getElementById('clearBtn');
     const metaEl = document.getElementById('meta');
@@ -158,18 +186,25 @@
     const aboutBtn = document.getElementById('aboutBtn');
     const aboutSheet = document.getElementById('aboutSheet');
     const aboutMeta = document.getElementById('aboutMeta');
-    const installBtn = document.getElementById('installBtn');
-    const installedBadge = document.getElementById('installedBadge');
     const toast = document.getElementById('toast');
+    const toTopBtn = document.getElementById('toTopBtn');
 
+    // ------------------------------ UX helpers
     function showToast(msg='Done'){
       toast.querySelector('div').textContent = msg;
       toast.classList.remove('hidden');
       clearTimeout(showToast._t);
-      showToast._t = setTimeout(()=>toast.classList.add('hidden'), 1300);
+      showToast._t = setTimeout(()=>toast.classList.add('hidden'), 1200);
+      if (navigator.vibrate) navigator.vibrate(12);
     }
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY || document.documentElement.scrollTop;
+      if (y > 240) toTopBtn.classList.remove('hidden'); else toTopBtn.classList.add('hidden');
+    });
+    toTopBtn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    aboutBtn.addEventListener('click', () => aboutSheet.showModal());
 
-    // Normalization for typo/Franco-Arab tolerant search
+    // ------------------------------ Search normalization (Franco-Arab tolerant)
     function normalize(s=""){
       let x=(s||"").toString().toLowerCase().trim();
       x=x.replace(/2/g,'a').replace(/3/g,'a').replace(/5/g,'kh').replace(/6/g,'t').replace(/7/g,'h').replace(/8/g,'q').replace(/9/g,'s');
@@ -182,32 +217,51 @@
     }
     function escapeHtml(s=""){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
     function mapsUrl(item){
-      if (item.link) return item.link;
+      if (item.link) return item.link; // preferred
       const dest = (item.query || `${item.name} ${item.area||''}`).trim();
       return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`;
     }
 
-    // ---------- Card ----------
+    // ------------------------------ Visual accents
+    function hueFromString(str=''){
+      let h=0; for (let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) >>> 0;
+      return h % 360;
+    }
+    function accentStyleForBrand(brand=''){
+      const h = hueFromString(brand || '');
+      const a1 = `hsl(${h} 90% 60%)`;
+      const a2 = `hsl(${(h+30)%360} 85% 50%)`;
+      return `background: linear-gradient(180deg, ${a1}, ${a2});`;
+    }
+
+    // ------------------------------ Card (fixed: clickable <a> + whole-card tap)
     function card(item){
       const label = item.area ? `${escapeHtml(item.name)} <span class="opacity-80">(${escapeHtml(item.area)})</span>` : escapeHtml(item.name);
       const href = mapsUrl(item);
       const canCopy = Boolean(item.link);
+      const stripe = accentStyleForBrand(item.name);
+
       return `
-        <article class="rounded-2xl glass ring-soft p-3 shadow-card">
-          <div class="flex items-start gap-3">
+        <article class="card group rounded-2xl glass ring-soft p-3 shadow-card relative overflow-hidden pressable cursor-pointer"
+                 data-href="${href}">
+          <div class="cardAccent" style="${stripe}"></div>
+          <div class="relative z-[1] flex items-center gap-3">
             <div class="h-10 w-10 rounded-xl glass ring-soft flex items-center justify-center shrink-0">
-              <svg class="h-5 w-5 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l1.5 3.8L17 8.5l-3.5 1.7L12 14l-1.5-3.8L7 8.5l3.5-1.7L12 3Z" stroke-width="1.5"/></svg>
+              <svg class="h-6 w-6 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <path stroke-width="1.5" d="M12 22s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"/>
+                <circle cx="12" cy="11" r="2.5" stroke-width="1.5"/>
+              </svg>
             </div>
             <div class="flex-1">
-              <div class="text-base font-semibold leading-6">${label}</div>
+              <div class="text-[15px] font-semibold leading-6">${label}</div>
               <div class="mt-3 flex gap-2">
                 <a href="${href}" target="_blank" rel="noopener"
-                   class="tap inline-flex items-center justify-center px-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">
+                   class="openBtn tap inline-flex items-center justify-center px-3 rounded-xl bg-brand-600 text-white font-semibold">
                   Open in Maps
                 </a>
                 <button ${canCopy ? '' : 'disabled'}
                         data-copy="${canCopy ? escapeHtml(item.link) : ''}"
-                        class="tap inline-flex items-center justify-center px-3 rounded-xl glass ring-soft text-white/90 copyBtn">
+                        class="copyBtn tap inline-flex items-center justify-center px-3 rounded-xl chip text-white/90">
                   Copy
                 </button>
               </div>
@@ -217,7 +271,7 @@
       `;
     }
 
-    // ---------- Data + Search ----------
+    // ------------------------------ Data + Search
     let locations = [];
     let fuse = null;
 
@@ -229,36 +283,83 @@
       });
     }
 
-    function render(items){
-      if(!items?.length){
-        listEl.innerHTML = `<div class="text-center text-white/70 py-12">No locations yet. Add entries to <span class="font-semibold">locations.json</span>.</div>`;
+    function render(items, term=''){
+      const count = items?.length || 0;
+      const termBadge = term ? ` for <span class="font-semibold text-white/80">“${escapeHtml(term)}”</span>` : '';
+      resultsInfo.innerHTML = `${count} result${count===1?'':'s'}${termBadge}`;
+
+      if(!count){
+        listEl.innerHTML = `
+          <div class="text-center text-white/70 py-12">
+            <div class="mx-auto mb-3 opacity-60" style="width:48px;height:48px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-12 h-12"><path stroke-width="1.5" d="M12 22s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"/><circle cx="12" cy="11" r="2.5" stroke-width="1.5"/></svg>
+            </div>
+            No locations yet. Add entries to <span class="font-semibold">locations.json</span>.
+          </div>`;
         return;
       }
       const sorted = items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'') || (a.area||'').localeCompare(b.area||''));
       listEl.innerHTML = sorted.map(card).join('');
+
+      // Copy button
       listEl.querySelectorAll('.copyBtn').forEach(btn=>{
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', async (ev) => {
+          ev.stopPropagation(); ev.preventDefault();
           const text = btn.getAttribute('data-copy');
           if(!text) return;
           try{ await navigator.clipboard.writeText(text); showToast('Link copied'); }
           catch{ showToast('Copy failed'); }
         });
       });
+
+      // Prevent card click when pressing the <a>
+      listEl.querySelectorAll('a.openBtn').forEach(a=>{
+        a.addEventListener('click', (ev) => ev.stopPropagation());
+      });
+
+      // Whole-card tap opens same href
+      listEl.querySelectorAll('article.card').forEach(card=>{
+        card.addEventListener('click', () => {
+          const href = card.getAttribute('data-href');
+          if (!href) return;
+          // In PWA, direct navigation hands off to Maps app nicely:
+          location.href = href;
+          // If you prefer a new tab in browser context, use:
+          // window.open(href, '_blank');
+        });
+      });
     }
 
     function doSearch(){
       const term=(q.value||'').trim();
-      if(!term){ render(locations); return; }
+      if(!term){ render(locations, ''); return; }
       const n=normalize(term);
       const A=fuse.search(n.base).map(r=>r.item);
       const B=fuse.search(n.vowelless).map(r=>r.item);
       const seen=new Set(); const merged=[...A,...B].filter(x=>!seen.has(x)&&seen.add(x));
-      render(merged);
+      render(merged, term);
     }
 
     function showSkeletons(n=4){
-      const tpl=document.getElementById('skeleton');
-      listEl.innerHTML=''; for(let i=0;i<n;i++) listEl.appendChild(tpl.content.cloneNode(true));
+      const tpl=document.getElementById('skeleton'); listEl.innerHTML='';
+      for(let i=0;i<n;i++) listEl.appendChild(tpl.content.cloneNode(true));
+    }
+
+    function buildChips(){
+      const freq = new Map();
+      for (const it of locations) freq.set(it.name, (freq.get(it.name)||0)+1);
+      const top = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([name])=>name);
+      const frag = top.map(n=>{
+        const hue = (()=>{
+          let h=0; for (let i=0;i<n.length;i++) h=(h*31+n.charCodeAt(i))>>>0; return h%360;
+        })();
+        const bg = `linear-gradient(180deg, hsl(${hue} 90% 60%), hsl(${(hue+30)%360} 85% 50%))`;
+        return `<button class="chip pressable text-sm rounded-xl px-3 py-1.5" data-chip="${escapeHtml(n)}" style="background:${bg}; color:#0B0F13; font-weight:600">${escapeHtml(n)}</button>`;
+      }).join(' ');
+      chipsEl.innerHTML = frag;
+      document.querySelectorAll('#chips [data-chip]').forEach(btn=>{
+        btn.addEventListener('click', () => { q.value = btn.getAttribute('data-chip'); doSearch(); q.focus(); });
+      });
     }
 
     async function loadJson({bust=false} = {}){
@@ -269,9 +370,8 @@
         if(!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         locations = Array.isArray(data) ? data : (data.locations || []);
-        initFuse(); render(locations);
-        const updated=(data.updated||'')?.trim?.()||'';
-        const version=(data.version||'')?.trim?.()||'';
+        initFuse(); render(locations,''); buildChips();
+        const updated=(data.updated||'')?.trim?.()||''; const version=(data.version||'')?.trim?.()||'';
         const meta=[updated?`Updated: ${updated}`:'', version?`• v${version}`:'', `• ${locations.length} locations`].filter(Boolean).join(' ');
         metaEl.textContent=meta; aboutMeta.textContent=meta;
       }catch(e){
@@ -280,49 +380,70 @@
       }
     }
 
-    // ---------- Events ----------
+    // ------------------------------ Events
     let debounce;
     q.addEventListener('input', ()=>{ clearTimeout(debounce); debounce=setTimeout(doSearch,80); });
     clearBtn.addEventListener('click', ()=>{ q.value=''; doSearch(); q.focus(); });
     reloadBtn.addEventListener('click', ()=>loadJson({bust:true}));
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) doSearch(); });
-    aboutBtn.addEventListener('click', ()=>aboutSheet.showModal());
 
-    // ---------- PWA: install FAB logic ----------
+    // ------------------------------ INSTALL (always show + helper)
+    const installBtn = document.getElementById('installBtn');
+    const installedBadge = document.getElementById('installedBadge');
+    const installHelp = document.getElementById('installHelp');
+    const installHelpBody = document.getElementById('installHelpBody');
+
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    if (isStandalone) {
-      installedBadge.classList.remove('hidden');
-    }
+    if (isStandalone) installedBadge.classList.remove('hidden');
 
     let deferredPrompt = null;
     window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      if (!isStandalone) installBtn.classList.remove('hidden');
-    });
-    installBtn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        installBtn.classList.add('hidden');
-        installedBadge.classList.remove('hidden');
-        showToast('App installed');
-      }
-      deferredPrompt = null;
-    });
-    window.addEventListener('appinstalled', () => {
-      installBtn.classList.add('hidden');
-      installedBadge.classList.remove('hidden');
-      showToast('App installed');
+      e.preventDefault(); deferredPrompt = e; installBtn.textContent='Install app'; installBtn.disabled=false;
     });
 
-    // ---------- Service worker (offline) ----------
-    if ('serviceWorker' in navigator) {
+    function isSecureContextForPWA() {
+      return location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    }
+    function isIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+    async function hasActiveSW(){ try{ return Boolean(await navigator.serviceWorker.getRegistration()); }catch{ return false; } }
+    function openHelp(html){ installHelpBody.innerHTML=html; installHelp.showModal(); }
+
+    installBtn.addEventListener('click', async () => {
+      if (isStandalone) { showToast('Already installed'); return; }
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') { installedBadge.classList.remove('hidden'); showToast('App installed'); }
+        deferredPrompt = null; return;
+      }
+      const secure = isSecureContextForPWA(); const swReady = 'serviceWorker' in navigator ? await hasActiveSW() : false;
+      if (isIOS()) {
+        openHelp(`<p>On iPhone/iPad:</p>
+          <ol class="list-decimal pl-5 space-y-1 text-white/70">
+            <li>Open in <strong>Safari</strong></li>
+            <li>Share (square with arrow) → <strong>Add to Home Screen</strong></li>
+          </ol>`); return;
+      }
+      const reasons = [];
+      if (!secure) reasons.push('Serve over <strong>HTTPS</strong> or <code>localhost</code>.');
+      if (!('serviceWorker' in navigator)) reasons.push('This browser does not support Service Workers.');
+      else if (!swReady) reasons.push('Service Worker not active yet — refresh once.');
+      openHelp(`
+        <p>Can’t show the install prompt right now.</p>
+        ${reasons.length?`<ul class="list-disc pl-5 text-white/70">${reasons.map(r=>`<li>${r}</li>`).join('')}</ul>`:''}
+        <p class="mt-2 text-white/70">Tip: try the browser menu → <strong>Install app</strong>.</p>
+      `);
+    });
+
+    window.addEventListener('appinstalled', () => { installedBadge.classList.remove('hidden'); showToast('App installed'); });
+
+    // ------------------------------ Minimal SW registration (no caching)
+    if ('serviceWorker' in navigator &&
+        (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
       navigator.serviceWorker.register('./service-worker.js');
     }
 
-    // First load
+    // ------------------------------ Boot
     loadJson();
   </script>
 </body>
