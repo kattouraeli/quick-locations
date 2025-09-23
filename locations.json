@@ -1,25 +1,25 @@
 {
   "version": "1.0.0",
-  "updated": "2025-09-18",
+  "updated": "2025-09-23",
   "locations": [
-    { "name": "Spinneys", "area": "Mar Mitr | Ashrafieh",     "link": "https://maps.app.goo.gl/djNfMcUQzp5bCY6c6", "lat": 33.8906975,"lng": 35.5210953 },
-    { "name": "Spinneys", "area": "Hazmieh",   "link": "https://maps.app.goo.gl/9TpRpt13583PPw827", "lat": 33.8631935,"lng": 35.5325278 },
-    { "name": "Spinneys", "area": "Dbayeh | ABC",    "link": "https://maps.app.goo.gl/xSrjDjQhSdSYizVv6", "lat": 33.9247246,"lng": 35.5875556  },
-    { "name": "Spinneys", "area": "Dbayeh | 24/24",    "link": "https://maps.app.goo.gl/ZyqNvYELZXNuT4yZ6", "lat": 33.9349444,"lng": 35.5896111  },
+    { "name": "Spinneys", "area": "Mar Mitr | Ashrafieh",     "link": "https://maps.app.goo.gl/djNfMcUQzp5bCY6c6", "lat": 33.8906944,"lng": 35.5210833 },
+    { "name": "Spinneys", "area": "Hazmieh",   "link": "https://maps.app.goo.gl/9TpRpt13583PPw827", "lat": 33.8631935,"lng": 35.5325241 },
+    { "name": "Spinneys", "area": "Dbayeh | ABC",    "link": "https://maps.app.goo.gl/xSrjDjQhSdSYizVv6", "lat": 33.9247246,"lng": 35.5875626  },
+    { "name": "Spinneys", "area": "Dbayeh | 24/24",    "link": "https://maps.app.goo.gl/ZyqNvYELZXNuT4yZ6", "lat": 33.9349556,"lng": 35.5896225  },
 
-    { "name": "Chedid Food", "area": "Mtayleb", "link": "https://maps.app.goo.gl/8EruFeoQnbLaNfzu8", "lat": 33.9240556,"lng": 35.6166667  },
+    { "name": "Chedid Food", "area": "Mtayleb", "link": "https://maps.app.goo.gl/8EruFeoQnbLaNfzu8", "lat": 33.9240646,"lng": 35.6166649  },
 
-    { "name": "Grab & Go", "area": "Hazmieh | Mar Takla",   "link": "https://maps.app.goo.gl/S8mrbA3Cu2NwLd5A9", "lat": 33.8508682,"lng": 35.5492778  },
+    { "name": "Grab & Go", "area": "Hazmieh | Mar Takla",   "link": "https://maps.app.goo.gl/S8mrbA3Cu2NwLd5A9", "lat": 33.8508682,"lng": 35.5492668  },
 
-    { "name": "Faddoul", "area": "Sarba",      "link": "https://maps.app.goo.gl/Vx5DQieu2JFwJkdAA", "lat": 33.9781389,"lng": 35.6249444 },
+    { "name": "Faddoul", "area": "Sarba",      "link": "https://maps.app.goo.gl/Vx5DQieu2JFwJkdAA", "lat": 33.9781303,"lng": 35.6249542},
 
-    { "name": "Charcutier Aoun", "area": "Sed El Boshrieh | Dekwaneh",      "link": "https://maps.app.goo.gl/CTTcjEm1KAbe8h4j8", "lat": 33.8875694,"lng": 35.5605556 },
+    { "name": "Charcutier Aoun", "area": "Sed El Boshrieh | Dekwaneh",      "link": "https://maps.app.goo.gl/CTTcjEm1KAbe8h4j8", "lat": 33.8875694,"lng": 35.5605621},
 
-    { "name": "Mokhtabar", "area": "Mar Roukoz",      "link": "https://maps.app.goo.gl/X1fp681tqMETHRgK8", "lat": 33.8660698,"lng": 35.5636389  },
+    { "name": "Mokhtabar", "area": "Mar Roukoz",      "link": "https://maps.app.goo.gl/X1fp681tqMETHRgK8", "lat": 33.8660698,"lng": 35.5636368  },
 
-    { "name": "Fahed", "area": "Furn El Chebbak",      "link": "https://maps.app.goo.gl/TohkVrnyqiAXpsf37", "lat": 33.8702736,"lng": 35.5247222  },
+    { "name": "Fahed", "area": "Furn El Chebbak",      "link": "https://maps.app.goo.gl/TohkVrnyqiAXpsf37", "lat": 33.8702736,"lng": 35.5247078  },
     
-    { "name": "Storium Saliba", "area": "Cornet Chehwan",      "link": "https://maps.app.goo.gl/EkwCQPJpZ19FAXrL8", "lat": 33.920604,"lng": 35.6285567 }
+    { "name": "Storium Saliba", "area": "Cornet Chehwan",      "link": "https://maps.app.goo.gl/EkwCQPJpZ19FAXrL8", "lat": 33.8702736,"lng": 35.5247078 }
 
   ]
   }
