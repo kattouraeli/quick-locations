@@ -1,6 +1,6 @@
 {
   "name": "Quick Locations",
-  "short_name": "Quick Locations",
+  "short_name": "Locations",
   "description": "Fast search for saved delivery spots. One-tap open in Google Maps.",
   "id": "/quick-locations",            
   "start_url": "./",                   

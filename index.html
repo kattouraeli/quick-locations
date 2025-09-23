@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Quick Locations • Curvea Design</title>
+  <title>Quick Locations • Curvea</title>
   <meta name="description" content="Fast search for saved delivery locations. One tap opens Google Maps." />
 
   <!-- PWA basics (no offline) -->
@@ -58,6 +58,11 @@
     .chip{background:rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08)}
     .cardAccent{position:absolute; left:0; top:0; bottom:0; width:4px; border-top-left-radius:16px; border-bottom-left-radius:16px}
     .scrollpad{padding-bottom:calc(110px + var(--safe-bottom))}
+    /* route bar show/hide */
+    .routebar{transform:translateY(110%); transition:transform .18s ease}
+    .routebar.show{transform:translateY(0)}
+    /* prevent accidental keyboard: chips won't focus input */
+    button, a { -webkit-tap-highlight-color: transparent; }
   </style>
 </head>
 <body class="h-full bg-base-900 text-white">
@@ -73,7 +78,7 @@
             <h1 class="text-[26px] font-semibold leading-6 tracking-tight">Quick Locations</h1>
             <p id="meta" class="text-xs text-white/70 mt-1">Loading…</p>
             <p class="text-[11px] text-white/45 mt-1">
-              <button id="aboutBtn" class="underline decoration-dotted hover:text-white/70">Designed by Curvea Design</button>
+              <button id="aboutBtn" class="underline decoration-dotted hover:text-white/70">Designed by Curvea</button>
             </p>
           </div>
           <button id="reloadBtn" class="tap px-3 rounded-xl glass ring-soft text-sm pressable">Reload</button>
@@ -132,10 +137,26 @@
 
     <!-- FLOATING: Install + Top -->
     <div class="floating flex flex-col items-end gap-2">
-      <button id="installBtn" class="tap px-4 py-2 rounded-2xl glass ring-soft shadow-card text-sm pressable">
+      <button id="installBtn" class="tap px-4 py-2 rounded-2xl glass ring-soft shadow-card text-sm pressable hidden">
         Install app
       </button>
       <button id="toTopBtn" class="hidden tap px-3 py-2 rounded-2xl glass ring-soft shadow-card text-sm pressable" aria-label="Scroll to top">↑ Top</button>
+    </div>
+
+    <!-- ROUTE BAR (hidden until selection) -->
+    <div id="routeBar" class="routebar fixed left-0 right-0 bottom-0 z-50 bg-base-800/95 backdrop-blur border-t border-white/10" aria-hidden="true">
+      <div class="max-w-xl mx-auto px-4 py-2 flex items-center gap-2">
+        <span id="routeCount" class="inline-flex items-center gap-1 rounded-full px-3 py-2 glass ring-soft text-xs">
+          0 selected
+        </span>
+        <span id="routeTip" class="text-[12px] text-white/70 truncate">Pick stops, then Build Route →</span>
+        <div class="ml-auto flex items-center gap-2">
+          <button id="routeClearBtn" class="tap px-3 rounded-xl glass ring-soft pressable">Clear</button>
+          <button id="routeBuildBtn" class="tap px-4 rounded-xl bg-brand-600 text-black font-semibold pressable disabled:opacity-60" disabled>
+            Build Route
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ABOUT -->
@@ -146,12 +167,8 @@
           <button class="tap px-3 rounded-xl glass ring-soft pressable">Close</button>
         </div>
         <p class="text-sm text-white/80 mt-3">
-          Designed by <strong>Curvea Design</strong>. Installable on Android. Tap anywhere on a card to open Google Maps. “Copy” copies the link.
+          Designed by <strong>Curvea</strong>. Installable on Android. Use <em>Open in Maps</em> for a single stop, or <em>Add to Route</em> to chain multiple stops.
         </p>
-        <ol class="text-xs text-white/65 mt-3 list-decimal pl-5 space-y-1">
-          <li>Tap <em>Install app</em> (or Chrome menu → <strong>Install app</strong>).</li>
-          <li>Open from your home screen for full-screen app mode.</li>
-        </ol>
         <div class="mt-3 text-[12px] text-white/60" id="aboutMeta"></div>
       </form>
     </dialog>
@@ -189,6 +206,13 @@
     const toast = document.getElementById('toast');
     const toTopBtn = document.getElementById('toTopBtn');
 
+    // Route bar refs
+    const routeBar = document.getElementById('routeBar');
+    const routeCount = document.getElementById('routeCount');
+    const routeTip = document.getElementById('routeTip');
+    const routeBuildBtn = document.getElementById('routeBuildBtn');
+    const routeClearBtn = document.getElementById('routeClearBtn');
+
     // ------------------------------ UX helpers
     function showToast(msg='Done'){
       toast.querySelector('div').textContent = msg;
@@ -212,14 +236,22 @@
       const vowelless=x.replace(/[aeiou]/g,''); return {base:x, vowelless};
     }
     function makeKey(name, area){
-      const a=normalize(name||''), b=normalize(area||''), c=normalize((name||'')+(area||''));
+      const a=normalize(name||''), b=normalize(area||''), c=normalize((name||'')+(area||'')); 
       return [a.base,a.vowelless,b.base,b.vowelless,c.base,c.vowelless].filter(Boolean).join(' ');
     }
     function escapeHtml(s=""){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-    function mapsUrl(item){
-      if (item.link) return item.link; // preferred
-      const dest = (item.query || `${item.name} ${item.area||''}`).trim();
-      return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`;
+
+    // Build the single-place open link (your short link if present)
+    function mapsSingleHref(item){
+      return item.link || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((item.name + ' ' + (item.area||'')).trim())}`;
+    }
+
+    // Build a precise point string for routes (lat,lng only)
+    function mapsPoint(item){
+      if (typeof item.lat === 'number' && typeof item.lng === 'number') {
+        return `${item.lat},${item.lng}`;
+      }
+      return null; // we do NOT fall back to text queries (per your requirement)
     }
 
     // ------------------------------ Visual accents
@@ -234,16 +266,72 @@
       return `background: linear-gradient(180deg, ${a1}, ${a2});`;
     }
 
-    // ------------------------------ Card (fixed: clickable <a> + whole-card tap)
-    function card(item){
+    // ------------------------------ Route state (persisted)
+    const ROUTE_KEY = 'route:selected:v1';
+    let selectedKeys = JSON.parse(localStorage.getItem(ROUTE_KEY) || '[]'); // array of item.__key strings (add order)
+    function saveRoute(){ localStorage.setItem(ROUTE_KEY, JSON.stringify(selectedKeys)); }
+    function isSelected(key){ return selectedKeys.indexOf(key) !== -1; }
+    function toggleRoute(key){
+      const i = selectedKeys.indexOf(key);
+      if (i === -1) selectedKeys.push(key); else selectedKeys.splice(i,1);
+      saveRoute(); updateRouteBar(); // button UI updated on render()
+    }
+    function clearRoute(){ selectedKeys = []; saveRoute(); updateRouteBar(); render(currentItems, currentTerm); }
+
+    function updateRouteBar(){
+      const n = selectedKeys.length;
+      routeCount.textContent = `${n} selected`;
+      routeBuildBtn.disabled = n < 1;
+      routeTip.textContent = n ? 'Tap Build Route to start navigation.' : 'Pick stops, then Build Route →';
+      if (n > 0) {
+        routeBar.classList.add('show');
+        routeBar.setAttribute('aria-hidden','false');
+      } else {
+        routeBar.classList.remove('show');
+        routeBar.setAttribute('aria-hidden','true');
+      }
+    }
+
+    function buildRouteURL(){
+      if (selectedKeys.length < 1) return null;
+
+      // Map __key -> full item
+      const byKey = new Map(locations.map(i => [i.__key, i]));
+      const chosen = selectedKeys.map(k => byKey.get(k)).filter(Boolean);
+
+      // Only keep items that have coords
+      const usable = chosen
+        .map(it => ({ it, point: mapsPoint(it) }))
+        .filter(x => !!x.point);
+
+      if (!usable.length) { showToast('No stops have coordinates.'); return null; }
+      if (usable.length < chosen.length) showToast('Some stops were skipped (no coords).');
+
+      const origin = 'Current+Location';
+      const destination = usable[usable.length - 1].point;
+      const mids = usable.slice(0,-1).map(x => x.point);
+
+      const p = new URLSearchParams({ api:'1', travelmode:'driving', origin, destination });
+      if (mids.length) p.set('waypoints', mids.join('|')); // URLSearchParams encodes once
+
+      return `https://www.google.com/maps/dir/?${p.toString()}`;
+    }
+
+    // ------------------------------ Card (anchor for open; button for route)
+    function card(item, orderMap){
       const label = item.area ? `${escapeHtml(item.name)} <span class="opacity-80">(${escapeHtml(item.area)})</span>` : escapeHtml(item.name);
-      const href = mapsUrl(item);
-      const canCopy = Boolean(item.link);
+      const href = mapsSingleHref(item);
       const stripe = accentStyleForBrand(item.name);
+      const added = isSelected(item.__key);
+      const orderBadge = added ? `<span class="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-lime-500/20 text-lime-200 text-[11px] px-1">${orderMap.get(item.__key)}</span>` : '';
+
+      // if no coords, the route button is disabled
+      const point = mapsPoint(item);
+      const routeBtnState = point ? '' : 'data-disabled="1" title="No coordinates for routes"';
 
       return `
-        <article class="card group rounded-2xl glass ring-soft p-3 shadow-card relative overflow-hidden pressable cursor-pointer"
-                 data-href="${href}">
+        <article class="card group rounded-2xl glass ring-soft p-3 shadow-card relative overflow-hidden pressable"
+                 data-key="${escapeHtml(item.__key)}">
           <div class="cardAccent" style="${stripe}"></div>
           <div class="relative z-[1] flex items-center gap-3">
             <div class="h-10 w-10 rounded-xl glass ring-soft flex items-center justify-center shrink-0">
@@ -256,13 +344,12 @@
               <div class="text-[15px] font-semibold leading-6">${label}</div>
               <div class="mt-3 flex gap-2">
                 <a href="${href}" target="_blank" rel="noopener"
-                   class="openBtn tap inline-flex items-center justify-center px-3 rounded-xl bg-brand-600 text-white font-semibold">
+                   class="openBtn tap inline-flex items-center justify-center px-3 rounded-xl bg-brand-600 text-black font-semibold">
                   Open in Maps
                 </a>
-                <button ${canCopy ? '' : 'disabled'}
-                        data-copy="${canCopy ? escapeHtml(item.link) : ''}"
-                        class="copyBtn tap inline-flex items-center justify-center px-3 rounded-xl chip text-white/90">
-                  Copy
+                <button class="routeBtn tap inline-flex items-center justify-center px-3 rounded-xl chip text-white/90 ${added?'ring-2 ring-lime-500/70':''}"
+                        ${routeBtnState}>
+                  ${added ? 'Added' : 'Add to Route'}${orderBadge}
                 </button>
               </div>
             </div>
@@ -274,9 +361,17 @@
     // ------------------------------ Data + Search
     let locations = [];
     let fuse = null;
+    let currentItems = [];
+    let currentTerm = '';
 
     function initFuse(){
-      locations.forEach(loc => { loc._key = makeKey(loc.name, loc.area); });
+      locations.forEach((loc, idx) => {
+        loc._key = makeKey(loc.name, loc.area);
+        // Stable unique key (link preferred; else name|area|lat|lng)
+        loc.__key = (loc.link ? `L|${loc.link}` :
+                     `N|${(loc.name||'').trim()}|${(loc.area||'').trim()}|${loc.lat??''}|${loc.lng??''}`)
+                    .toLowerCase();
+      });
       fuse = new Fuse(locations, {
         keys:[{name:'_key',weight:.75},{name:'name',weight:.15},{name:'area',weight:.10}],
         threshold:.35, ignoreLocation:true
@@ -284,6 +379,9 @@
     }
 
     function render(items, term=''){
+      currentItems = items.slice();
+      currentTerm = term;
+
       const count = items?.length || 0;
       const termBadge = term ? ` for <span class="font-semibold text-white/80">“${escapeHtml(term)}”</span>` : '';
       resultsInfo.innerHTML = `${count} result${count===1?'':'s'}${termBadge}`;
@@ -292,42 +390,50 @@
         listEl.innerHTML = `
           <div class="text-center text-white/70 py-12">
             <div class="mx-auto mb-3 opacity-60" style="width:48px;height:48px">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-12 h-12"><path stroke-width="1.5" d="M12 22s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"/><circle cx="12" cy="11" r="2.5" stroke-width="1.5"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-12 h-12"><path stroke-width="1.5" d="M12 22s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"/><circle cx="12" cy="11" r="2.5"/></svg>
             </div>
             No locations yet. Add entries to <span class="font-semibold">locations.json</span>.
           </div>`;
+        updateRouteBar();
         return;
       }
+
+      // Build an order map for number badges (1..n by selection order)
+      const orderMap = new Map();
+      selectedKeys.forEach((k, i) => orderMap.set(k, i+1));
+
       const sorted = items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'') || (a.area||'').localeCompare(b.area||''));
-      listEl.innerHTML = sorted.map(card).join('');
+      listEl.innerHTML = sorted.map(i => card(i, orderMap)).join('');
 
-      // Copy button
-      listEl.querySelectorAll('.copyBtn').forEach(btn=>{
-        btn.addEventListener('click', async (ev) => {
-          ev.stopPropagation(); ev.preventDefault();
-          const text = btn.getAttribute('data-copy');
-          if(!text) return;
-          try{ await navigator.clipboard.writeText(text); showToast('Link copied'); }
-          catch{ showToast('Copy failed'); }
-        });
-      });
-
-      // Prevent card click when pressing the <a>
+      // Prevent anchor from bubbling
       listEl.querySelectorAll('a.openBtn').forEach(a=>{
         a.addEventListener('click', (ev) => ev.stopPropagation());
       });
 
-      // Whole-card tap opens same href
-      listEl.querySelectorAll('article.card').forEach(card=>{
-        card.addEventListener('click', () => {
-          const href = card.getAttribute('data-href');
-          if (!href) return;
-          // In PWA, direct navigation hands off to Maps app nicely:
-          location.href = href;
-          // If you prefer a new tab in browser context, use:
-          // window.open(href, '_blank');
+      // Route toggle button
+      listEl.querySelectorAll('.routeBtn').forEach(btn=>{
+        btn.addEventListener('click', (ev)=>{
+          ev.stopPropagation(); ev.preventDefault();
+          if (btn.dataset.disabled === '1') {
+            showToast('This location needs coordinates to be used in a route.');
+            return;
+          }
+          const card = btn.closest('article.card');
+          const key = card?.dataset.key;
+          if (!key) return;
+          toggleRoute(key);
+          const added = isSelected(key);
+          // recompute order badge
+          const order = selectedKeys.indexOf(key) + 1;
+          btn.innerHTML = `${added ? 'Added' : 'Add to Route'}${added ? `<span class="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-lime-500/20 text-lime-200 text-[11px] px-1">${order}</span>` : ''}`;
+          btn.classList.toggle('ring-2', added);
+          btn.classList.toggle('ring-lime-500/70', added);
         });
       });
+
+      // NOTE: whole card is NOT clickable anymore.
+
+      updateRouteBar();
     }
 
     function doSearch(){
@@ -357,8 +463,9 @@
         return `<button class="chip pressable text-sm rounded-xl px-3 py-1.5" data-chip="${escapeHtml(n)}" style="background:${bg}; color:#0B0F13; font-weight:600">${escapeHtml(n)}</button>`;
       }).join(' ');
       chipsEl.innerHTML = frag;
+      // Do NOT focus input on chip click (prevents keyboard popping)
       document.querySelectorAll('#chips [data-chip]').forEach(btn=>{
-        btn.addEventListener('click', () => { q.value = btn.getAttribute('data-chip'); doSearch(); q.focus(); });
+        btn.addEventListener('click', () => { q.value = btn.getAttribute('data-chip'); doSearch(); if (document.activeElement === q) q.blur(); });
       });
     }
 
@@ -383,22 +490,36 @@
     // ------------------------------ Events
     let debounce;
     q.addEventListener('input', ()=>{ clearTimeout(debounce); debounce=setTimeout(doSearch,80); });
-    clearBtn.addEventListener('click', ()=>{ q.value=''; doSearch(); q.focus(); });
-    reloadBtn.addEventListener('click', ()=>loadJson({bust:true}));
+    clearBtn.addEventListener('click', ()=>{ q.value=''; doSearch(); /* don’t focus to avoid keyboard pop */ });
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) doSearch(); });
+    reloadBtn.addEventListener('click', ()=>loadJson({bust:true}));
 
-    // ------------------------------ INSTALL (always show + helper)
+    // Route bar actions
+    routeBuildBtn.addEventListener('click', ()=>{
+      const url = buildRouteURL();
+      if (url) window.open(url, '_blank', 'noopener');
+    });
+    routeClearBtn.addEventListener('click', clearRoute);
+
+    // ------------------------------ INSTALL (hide if already installed)
     const installBtn = document.getElementById('installBtn');
     const installedBadge = document.getElementById('installedBadge');
     const installHelp = document.getElementById('installHelp');
     const installHelpBody = document.getElementById('installHelpBody');
 
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    if (isStandalone) installedBadge.classList.remove('hidden');
+    if (isStandalone) {
+      installedBadge.classList.remove('hidden');
+      installBtn.classList.add('hidden'); // hide install button if already installed
+    }
 
     let deferredPrompt = null;
     window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault(); deferredPrompt = e; installBtn.textContent='Install app'; installBtn.disabled=false;
+      e.preventDefault(); 
+      deferredPrompt = e; 
+      if (!isStandalone) installBtn.classList.remove('hidden'); // show only if promptable and not installed
+      installBtn.textContent='Install app'; 
+      installBtn.disabled=false;
     });
 
     function isSecureContextForPWA() {
@@ -409,11 +530,11 @@
     function openHelp(html){ installHelpBody.innerHTML=html; installHelp.showModal(); }
 
     installBtn.addEventListener('click', async () => {
-      if (isStandalone) { showToast('Already installed'); return; }
+      if (isStandalone) return;
       if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') { installedBadge.classList.remove('hidden'); showToast('App installed'); }
+        if (outcome === 'accepted') { installedBadge.classList.remove('hidden'); installBtn.classList.add('hidden'); showToast('App installed'); }
         deferredPrompt = null; return;
       }
       const secure = isSecureContextForPWA(); const swReady = 'serviceWorker' in navigator ? await hasActiveSW() : false;
@@ -435,7 +556,7 @@
       `);
     });
 
-    window.addEventListener('appinstalled', () => { installedBadge.classList.remove('hidden'); showToast('App installed'); });
+    window.addEventListener('appinstalled', () => { installedBadge.classList.remove('hidden'); installBtn.classList.add('hidden'); showToast('App installed'); });
 
     // ------------------------------ Minimal SW registration (no caching)
     if ('serviceWorker' in navigator &&
@@ -445,6 +566,7 @@
 
     // ------------------------------ Boot
     loadJson();
+    updateRouteBar(); // initialize bar based on persisted selection
   </script>
 </body>
 </html>
