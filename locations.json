@@ -1,25 +1,94 @@
 {
-  "version": "1.0.0",
-  "updated": "2025-09-23",
+  "version": "1.2.0",
+  "updated": "2025-10-20",
   "locations": [
-    { "name": "Spinneys", "area": "Mar Mitr | Ashrafieh",     "link": "https://maps.app.goo.gl/djNfMcUQzp5bCY6c6", "lat": 33.8906944,"lng": 35.5210833 },
-    { "name": "Spinneys", "area": "Hazmieh",   "link": "https://maps.app.goo.gl/9TpRpt13583PPw827", "lat": 33.8631935,"lng": 35.5325241 },
-    { "name": "Spinneys", "area": "Dbayeh | ABC",    "link": "https://maps.app.goo.gl/xSrjDjQhSdSYizVv6", "lat": 33.9247246,"lng": 35.5875626  },
-    { "name": "Spinneys", "area": "Dbayeh | 24/24",    "link": "https://maps.app.goo.gl/ZyqNvYELZXNuT4yZ6", "lat": 33.9349556,"lng": 35.5896225  },
-
-    { "name": "Chedid Food", "area": "Mtayleb", "link": "https://maps.app.goo.gl/8EruFeoQnbLaNfzu8", "lat": 33.9240646,"lng": 35.6166649  },
-
-    { "name": "Grab & Go", "area": "Hazmieh | Mar Takla",   "link": "https://maps.app.goo.gl/S8mrbA3Cu2NwLd5A9", "lat": 33.8508682,"lng": 35.5492668  },
-
-    { "name": "Faddoul", "area": "Sarba",      "link": "https://maps.app.goo.gl/Vx5DQieu2JFwJkdAA", "lat": 33.9781303,"lng": 35.6249542},
-
-    { "name": "Charcutier Aoun", "area": "Sed El Boshrieh | Dekwaneh",      "link": "https://maps.app.goo.gl/CTTcjEm1KAbe8h4j8", "lat": 33.8875694,"lng": 35.5605621},
-
-    { "name": "Mokhtabar", "area": "Mar Roukoz",      "link": "https://maps.app.goo.gl/X1fp681tqMETHRgK8", "lat": 33.8660698,"lng": 35.5636368  },
-
-    { "name": "Fahed", "area": "Furn El Chebbak",      "link": "https://maps.app.goo.gl/TohkVrnyqiAXpsf37", "lat": 33.8702736,"lng": 35.5247078  },
     
-    { "name": "Storium Saliba", "area": "Cornet Chehwan",      "link": "https://maps.app.goo.gl/EkwCQPJpZ19FAXrL8", "lat": 33.8702736,"lng": 35.5247078 }
 
+    { "id": "sp-001", "name": "Spinneys", "area": "Mar Mitr | Ashrafieh",     "link": "https://maps.app.goo.gl/djNfMcUQzp5bCY6c6", "lat": 33.8906944,"lng": 35.5210833 },
+    { "id": "sp-002", "name": "Spinneys", "area": "Hazmieh",   "link": "https://maps.app.goo.gl/9TpRpt13583PPw827", "lat": 33.8631935,"lng": 35.5325241 },
+    { "id": "sp-003", "name": "Spinneys", "area": "Dbayeh | ABC",    "link": "https://maps.app.goo.gl/xSrjDjQhSdSYizVv6", "lat": 33.9247246,"lng": 35.5875626  },
+    { "id": "sp-004", "name": "Spinneys", "area": "Dbayeh | 24/24",    "link": "https://maps.app.goo.gl/ZyqNvYELZXNuT4yZ6", "lat": 33.9349556,"lng": 35.5896225  },
+    { "id": "sp-005", "name": "Spinneys", "area": "Zook",    "link": "https://maps.app.goo.gl/SWaXucMB9JXVpYxy6", "lat": 33.9672919,"lng": 35.6071208  },
+    { "id": "sp-006", "name": "Spinneys", "area": "Ajaltoun",    "link": "https://maps.app.goo.gl/KhEzb6NAF7FWfkCQ9", "lat": 33.9596408,"lng": 35.6146068 },
+    { "id": "sp-007", "name": "Spinneys", "area": "Mtayleb",    "link": "https://www.google.com/maps?q=33.924108,35.624894&z=17&hl=en", "lat": 33.9596408,"lng": 35.6146068 },
+    { "id": "sp-008", "name": "Spinneys", "area": "Jnah",    "link": "https://maps.app.goo.gl/aEfmLTx2sihwF7nP8", "lat": 33.8733787,"lng": 35.489643 },
+    { "id": "sp-009", "name": "Spinneys", "area": "Alexandre",    "link": "https://maps.app.goo.gl/n9bWckEfTUa4pDKP9", "lat": 33.8848012,"lng": 35.5187474 },
+    
+    
+    { "id": "ha-001", "name": "Happy", "area": "Zook Mosbeh",    "link": "https://www.google.com/maps?q=33.9624368,35.606614&z=17&hl=en", "lat": 33.924108,"lng": 35.624894},
+    { "id": "ha-002", "name": "Happy", "area": "Choueifat",    "link": "https://maps.app.goo.gl/3EAFyZihTexhvfVp7", "lat": 33.8038516,"lng": 35.5053861},
+    { "id": "ha-003", "name": "Happy", "area": "Dekwanneh",    "link": "https://maps.app.goo.gl/z7Es5GGYXJDT6u4x8", "lat": 33.8794518,"lng": 35.5426034},
+    { "id": "ha-004", "name": "Happy", "area": "Hazmieh",    "link": "https://maps.app.goo.gl/fpYWUsus4TwEqost6", "lat": 33.8615002,"lng": 35.5282881},
+    { "id": "ha-005", "name": "Happy", "area": "Hadath",    "link": "https://maps.app.goo.gl/ewsWesWVBwD7LHhB8", "lat": 33.8434783,"lng": 35.5346886 },
+
+    
+    
+    
+    { "id": "cf-001", "name": "Chedid Food", "area": "Mtayleb", "link": "https://maps.app.goo.gl/8EruFeoQnbLaNfzu8", "lat": 33.9240646,"lng": 35.6166649  },
+
+    { "id": "gng-001", "name": "Grab & Go", "area": "Hazmieh | Mar Takla",   "link": "https://maps.app.goo.gl/S8mrbA3Cu2NwLd5A9", "lat": 33.8508682,"lng": 35.5492668  },
+    { "id": "gng-002", "name": "Grab & Go", "area": "Kaslik",   "link": "https://maps.app.goo.gl/QX1cLCsmY3PBmWB56", "lat": 33.9763538,"lng": 35.6068414  },
+    { "id": "gng-003", "name": "Grab & Go", "area": "Kantari",   "link": "https://maps.app.goo.gl/mSuqjtT8KQMB6Nqx9", "lat": 33.8952173,"lng": 35.4917335},
+    { "id": "gng-003", "name": "Grab & Go", "area": "Kantari",   "link": "https://maps.app.goo.gl/mSuqjtT8KQMB6Nqx9", "lat": 33.8952173,"lng": 35.4917335},
+    { "id": "gng-004", "name": "Grab & Go", "area": "Bliss",   "link": "https://maps.app.goo.gl/QQF3aAritroBHzPo6", "lat": 33.8952173,"lng": 35.4917335},
+    { "id": "gng-005", "name": "Grab & Go", "area": "Badaro",   "link": "https://maps.app.goo.gl/iPcqNA5rKSCw2vew6", "lat": 33.8780152,"lng": 35.5157942},
+    { "id": "gng-006", "name": "Grab & Go", "area": "Rizk",   "link": "https://maps.app.goo.gl/QRGedNWmnSBcnhn27", "lat": 33.8857741,"lng": 35.5164127},
+    { "id": "gng-007", "name": "Grab & Go", "area": "Sioufi",   "link": "https://maps.app.goo.gl/nAaqiytdEmjjiYv18", "lat": 33.8840456,"lng": 35.5249224},
+
+    
+    
+    { "id": "fd-001", "name": "Faddoul", "area": "Sarba",      "link": "https://maps.app.goo.gl/Vx5DQieu2JFwJkdAA", "lat": 33.9781303,"lng": 35.6249542},
+
+    { "id": "shp-001", "name": "Shop Point", "area": "Gemmayzeh",      "link": "https://maps.app.goo.gl/8n24bCCQgAUaryKeA", "lat": 33.8949246,"lng": 35.5116336},
+
+    
+    
+    { "id": "ca-001", "name": "Charcutier Aoun", "area": "Sed El Boshrieh | Dekwaneh",      "link": "https://maps.app.goo.gl/CTTcjEm1KAbe8h4j8", "lat": 33.8875694,"lng": 35.5605621},
+    { "id": "ca-002", "name": "Charcutier Aoun", "area": "Sarba",      "link": "https://maps.app.goo.gl/mzErD49A9wiYjAA1A", "lat": 33.9721539,"lng": 35.6041542},
+    { "id": "ca-003", "name": "Charcutier Aoun", "area": "Jeita",      "link": "https://maps.app.goo.gl/cZFe4Z1q1iqBfMyE8", "lat": 33.9564111,"lng": 35.6030265},
+    { "id": "ca-004", "name": "Charcutier Aoun", "area": "Naccach",      "link": "https://maps.app.goo.gl/8dfN6gnWzGYGqEwdA", "lat": 33.9465466,"lng": 35.5541362},
+    { "id": "ca-005", "name": "Charcutier Aoun", "area": "Fanar",      "link": "https://maps.app.goo.gl/pnFAUKrPQZr4enQ8A", "lat": 33.8741212,"lng": 35.5800999},
+    { "id": "ca-006", "name": "Charcutier Aoun", "area": "Beit Meri | Monte Verde",      "link": "https://www.google.com/maps?q=33.8543011,35.5812562&z=17&hl=en", "lat": 33.8543011,"lng": 35.5812562},
+    
+    
+    
+    
+    { "id": "mo-001", "name": "Mokhtabar", "area": "Mar Roukoz",      "link": "https://maps.app.goo.gl/X1fp681tqMETHRgK8", "lat": 33.8660698,"lng": 35.5636368  },
+
+    
+    
+    { "id": "fa-001", "name": "Fahed", "area": "Furn El Chebbak",      "link": "https://maps.app.goo.gl/TohkVrnyqiAXpsf37", "lat": 33.8702736,"lng": 35.5247078  },
+    
+    
+    { "id": "nk-001", "name": "NokNok", "area": "Zook Mosbeh",      "link": "https://www.google.com/maps?q=33.9600948,35.6092973&z=17&hl=en", "lat": 33.9600948,"lng": 35.6092973 },
+    { "id": "nk-002", "name": "NokNok", "area": "Zalka",      "link": "https://goo.gl/maps/ZbWXcUzuk4uXEEaQ8", "lat": 33.9002365,"lng": 35.5808826 },
+    
+    
+    { "id": "gs-001", "name": "Golden Star", "area": "Jounieh",      "link": "https://maps.app.goo.gl/hJxuYkcM3CBFJdzN8", "lat": 34.0651103,"lng": 35.5585394 },
+    
+    
+    
+    { "id": "ss-001", "name": "Storium Saliba", "area": "Cornet Chehwan",      "link": "https://maps.app.goo.gl/EkwCQPJpZ19FAXrL8", "lat": 33.8702736,"lng": 35.5247078 }
+
+  ],
+
+
+
+  "zones": [
+    {
+      "id": "zone-a",
+      "name": "Zone A",
+      "route": ["ca-001", "ha-003", "ca-005", "ca-006", "fa-001", "ha-004", "sp-002", "gng-001", "ha-005"]
+    },
+   {  
+      "id": "zone-b",
+      "name": "Zone B",
+      "route": ["ss-001"]
+    },
+    {
+      "id": "zone-c",
+      "name": "Zone C",
+      "route": ["ha-002", "sp-008", "gng-003", "gng-004", "gng-005", "gng-006", "sp-001", "sp-009","gng-007", "shp-001" ]
+    }
   ]
   }

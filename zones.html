@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Zones • Quick Locations</title>
+  <meta name="description" content="Predefined delivery routes by zone. One tap to start navigation." />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0B0F13">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Locations">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind (same tokens as your app) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter','ui-sans-serif','system-ui','-apple-system','Segoe UI','Roboto','Helvetica Neue','Arial'] },
+          colors: {
+            base:  { 900:'#0B0F13', 800:'#10161C', 700:'#141C24', 600:'#1B2430', 500:'#223042' },
+            brand: { 500:'#69C5FF', 600:'#3DAAFB', 700:'#2696E4', 800:'#1F7CC0' },
+            lime:  { 500:'#A2F26D' }
+          },
+          boxShadow: { card:'0 10px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04)' }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root{--safe-top:env(safe-area-inset-top,0);--safe-bottom:env(safe-area-inset-bottom,0)}
+    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial}
+    .hero{
+      background:
+        radial-gradient(900px 420px at 20% -160px, rgba(61,170,251,.22), transparent 70%),
+        radial-gradient(900px 420px at 80% -160px, rgba(162,242,109,.14), transparent 70%),
+        linear-gradient(180deg,#0B0F13 0%, #10161C 60%, #0B0F13 100%);
+    }
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(10px)}
+    .ring-soft{box-shadow: inset 0 0 0 1px rgba(255,255,255,.10)}
+    .tap{min-height:52px}
+    .pressable:active{transform:translateY(1px); transition:transform .04s}
+    button,a{-webkit-tap-highlight-color:transparent}
+  </style>
+  <script>
+  // allow 1+ tokens (hashes). generate at: https://emn178.github.io/online-tools/sha256.html
+  window.QL_LOCK = {
+    tokenHashes: [
+      "2dfdc7347827cdd347d388b6021e9a96aceb56078e2a4eec9345f257add1d1eb"
+    ],
+    appKey: "quicklocation-v1"
+  };
+</script>
+
+<script src="lock.js"></script>
+
+</head>
+<body class="h-full bg-base-900 text-white antialiased">
+  <main class="min-h-full">
+    <!-- HEADER -->
+    <header class="sticky top-0 z-30 hero border-b border-white/10">
+      <div class="mx-auto max-w-xl px-4 pt-[calc(16px+var(--safe-top))] pb-4">
+        <div class="flex items-center gap-3">
+          <a href="index.html" class="h-11 w-11 rounded-xl glass ring-soft flex items-center justify-center">
+            <img src="icons/icon-512.png" alt="" class="h-9 w-9 opacity-90" />
+          </a>
+          <div class="flex-1">
+            <h1 class="text-[22px] font-semibold leading-6 tracking-tight">Zones</h1>
+            <p id="meta" class="text-xs text-white/70 mt-1">Loading…</p>
+          </div>
+          <button id="reloadBtn" class="tap px-3 rounded-xl glass ring-soft text-sm pressable">Reload</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <section class="mx-auto max-w-xl px-4 pb-[calc(20px+var(--safe-bottom))]">
+      <div id="zonesList" class="pt-4 space-y-3"></div>
+    </section>
+
+    <!-- TOAST -->
+    <div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 bottom-[calc(18px+var(--safe-bottom))] z-50">
+      <div class="rounded-xl glass ring-soft px-3 py-2 text-sm shadow-card">Done</div>
+    </div>
+  </main>
+<!-- ACCESS GATE (Tailwind-based) -->
+<div id="ql-gate" class="fixed inset-0 z-[1000] hidden">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+
+  <div class="relative h-full w-full grid place-items-center p-5">
+    <div class="w-full max-w-sm rounded-2xl bg-base-800 text-white border border-white/10 shadow-xl">
+      <div class="p-5">
+        <div class="flex items-center gap-3">
+          <img src="icons/icon-192.png" class="h-10 w-10 rounded-xl ring-1 ring-white/10" alt="">
+          <div>
+            <h2 class="text-base font-semibold leading-5">Access</h2>
+            <p class="text-xs text-white/70">Enter your one-time token to unlock this device.</p>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <input id="ql-gate-token" type="password" autocomplete="one-time-code"
+                 class="w-full rounded-xl px-3 py-3 bg-white/5 ring-1 ring-white/10 outline-none
+                        focus:ring-2 focus:ring-brand-600 placeholder:text-white/40"
+                 placeholder="Token">
+          <p id="ql-gate-msg" class="mt-2 text-xs text-rose-300 hidden">Invalid token.</p>
+        </div>
+
+        <div class="mt-4 flex items-center gap-2">
+          <button id="ql-gate-cancel" class="tap px-3 py-2 rounded-xl ring-1 ring-white/10 hover:bg-white/5 flex-1">
+            Cancel
+          </button>
+          <button id="ql-gate-submit" class="tap px-3 py-2 rounded-xl bg-brand-600 text-black font-semibold flex-1">
+            Unlock
+          </button>
+        </div>
+
+        <div class="mt-3 text-[11px] text-white/50 flex items-center justify-between">
+          <button id="ql-gate-reset" class="underline decoration-dotted">Reset access on this device</button>
+          <span id="ql-gate-dev" class="hidden"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <script>
+    // ---------- DOM refs
+    const JSON_URL = 'locations.json';
+    const zonesList = document.getElementById('zonesList');
+    const metaEl = document.getElementById('meta');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const toast = document.getElementById('toast');
+    const showToast = (msg='Done') => {
+      toast.querySelector('div').textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(()=>toast.classList.add('hidden'), 1200);
+      if (navigator.vibrate) navigator.vibrate(12);
+    };
+
+    // ---------- Helpers
+    const escapeHtml = (s="") => s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const mapsPoint = (item) => (typeof item.lat==='number' && typeof item.lng==='number') ? `${item.lat},${item.lng}` : null;
+
+    // keep comma for coordinates; encode only text
+    function pointOrQuery(item){
+      const p = mapsPoint(item);
+      return p ? p : encodeURIComponent(`${item.name} ${item.area||''}`.trim());
+    }
+
+    function buildRouteURL(stopsResolved){
+      if (!stopsResolved.length) return null;
+
+      const usable = stopsResolved.map(it=>{
+        const p = mapsPoint(it);
+        return { q: p ? p : `${it.name} ${it.area||''}`.trim(), isPoint: !!p };
+      });
+
+      const origin = 'Current+Location';
+      const dest = usable[usable.length-1];
+      const destination = dest.isPoint ? dest.q : encodeURIComponent(dest.q);
+      const mids = usable.slice(0,-1).map(x => x.isPoint ? x.q : encodeURIComponent(x.q));
+
+      const p = new URLSearchParams({ api:'1', travelmode:'driving', origin, destination });
+      if (mids.length) p.set('waypoints', mids.join('|'));
+      return `https://www.google.com/maps/dir/?${p.toString()}`;
+    }
+
+    function zoneCard(zone, stopsResolved, updatedText){
+      const count = stopsResolved.length;
+      const first = stopsResolved[0]?.name || 'Start';
+      const last  = stopsResolved[count-1]?.name || 'Destination';
+
+      const stopsList = stopsResolved.map((s) => {
+        const href = `https://www.google.com/maps/dir/?api=1&destination=${pointOrQuery(s)}`;
+        return `
+          <li class="flex items-center justify-between gap-3 py-2">
+            <div class="min-w-0">
+              <div class="text-sm font-medium truncate">
+                ${escapeHtml(s.name)}${s.area ? ` <span class="opacity-70">(${escapeHtml(s.area)})</span>`:''}
+              </div>
+            </div>
+            <a href="${href}" target="_blank" rel="noopener"
+               class="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm ring-1 ring-white/10 hover:bg-white/5">Open</a>
+          </li>
+        `;
+      }).join('');
+
+      const routeUrl = buildRouteURL(stopsResolved) || '#';
+
+      return `
+        <article class="rounded-2xl glass ring-soft p-4 shadow-card">
+          <div class="flex items-start gap-3">
+            <div class="h-10 w-10 rounded-xl glass ring-soft flex items-center justify-center shrink-0">
+              <svg class="h-6 w-6 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <path stroke-width="1.5" d="M4 19h16M4 5h8a8 8 0 0 1 8 8v6"/>
+                <circle cx="8" cy="19" r="1.5" />
+                <circle cx="18" cy="19" r="1.5" />
+              </svg>
+            </div>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <h2 class="text-[15px] font-semibold leading-6">${escapeHtml(zone.name)}</h2>
+                <span class="text-xs text-white/60">• ${count} stop${count===1?'':'s'}</span>
+                ${updatedText ? `<span class="text-xs text-white/50">• ${escapeHtml(updatedText)}</span>` : ''}
+              </div>
+
+              <p class="mt-1 text-xs text-white/70 truncate">
+                Route: <span class="font-medium">${escapeHtml(first)}</span> → <span class="font-medium">${escapeHtml(last)}</span>
+              </p>
+
+              <!-- Actions: stack on mobile, inline on sm+ -->
+              <div class="mt-4 grid grid-cols-1 sm:flex sm:items-center sm:gap-2">
+                <a href="${routeUrl}" target="_blank" rel="noopener"
+                   class="tap inline-flex items-center justify-center rounded-xl px-4 py-3 font-semibold text-sm
+                          bg-brand-600 text-black w-full sm:w-auto">Start Route</a>
+
+                <button class="tap inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm
+                               ring-1 ring-white/10 hover:bg-white/5 mt-2 sm:mt-0 w-full sm:w-auto"
+                        data-zone-toggle="${escapeHtml(zone.id)}">View Stops</button>
+              </div>
+
+              <div id="stops-${escapeHtml(zone.id)}" class="mt-3 hidden">
+                <ul class="divide-y divide-white/10">
+                  ${stopsList}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    // ---------- Load + render
+    let ALL_LOCATIONS = [];
+    let ZONES = [];
+
+    async function loadJson({bust=false} = {}){
+      try{
+        const url = bust ? `${JSON_URL}?t=${Date.now()}` : JSON_URL;
+        const res = await fetch(url, { cache:'no-store' });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        ALL_LOCATIONS = Array.isArray(data) ? data : (data.locations || []);
+        ZONES = Array.isArray(data.zones) ? data.zones : [];
+
+        const updated=(data.updated||'')?.trim?.()||'';
+        const version=(data.version||'')?.trim?.()||'';
+        const meta=[updated?`Updated: ${updated}`:'', version?`• v${version}`:'', `• ${ZONES.length} zone${ZONES.length===1?'':'s'}`].filter(Boolean).join(' ');
+        metaEl.textContent = meta;
+
+        renderZones(updated || '');
+      }catch(e){
+        metaEl.textContent='Failed to load locations.json';
+        zonesList.innerHTML = `<div class="text-center text-rose-300 py-12">Could not load <span class="font-semibold">locations.json</span>.</div>`;
+      }
+    }
+
+    function renderZones(updatedText){
+      const byId = new Map(ALL_LOCATIONS.map(x => [x.id, x]));
+      const blocks = ZONES.map(z => {
+        const stopsResolved = (z.route || []).map(id => byId.get(id)).filter(Boolean);
+        return zoneCard(z, stopsResolved, updatedText);
+      }).join('');
+      zonesList.innerHTML = blocks || `<div class="text-center text-white/70 py-12">No zones yet. Add a <span class="font-semibold">zones</span> array in <span class="font-semibold">locations.json</span>.</div>`;
+
+      // wire toggles
+      zonesList.querySelectorAll('[data-zone-toggle]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const id = btn.getAttribute('data-zone-toggle');
+          const panel = document.getElementById(`stops-${id}`);
+          const open = panel.classList.toggle('hidden');
+          btn.textContent = open ? 'View Stops' : 'Hide Stops';
+        });
+      });
+    }
+
+    // ---------- Wire up
+    reloadBtn.addEventListener('click', ()=>loadJson({bust:true}));
+
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+      navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+    }
+
+    loadJson();
+  </script>
+</body>
+</html>

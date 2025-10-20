@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Locations • Quick Locations</title>
+  <meta name="description" content="Search saved locations and build routes fast." />
+
+  <!-- PWA basics -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0B0F13">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Locations">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind + tokens (same as original) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter','ui-sans-serif','system-ui','-apple-system','Segoe UI','Roboto','Helvetica Neue','Arial'] },
+          colors: {
+            base:  { 900:'#0B0F13', 800:'#10161C', 700:'#141C24', 600:'#1B2430', 500:'#223042' },
+            brand: { 500:'#69C5FF', 600:'#3DAAFB', 700:'#2696E4', 800:'#1F7CC0' },
+            lime:  { 500:'#A2F26D' }
+          },
+          boxShadow: {
+            card: '0 10px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04)'
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+
+  <style>
+    :root{--safe-top:env(safe-area-inset-top,0);--safe-bottom:env(safe-area-inset-bottom,0)}
+    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial}
+    .hero{
+      background:
+        radial-gradient(900px 420px at 20% -160px, rgba(61,170,251,.22), transparent 70%),
+        radial-gradient(900px 420px at 80% -160px, rgba(162,242,109,.14), transparent 70%),
+        linear-gradient(180deg,#0B0F13 0%, #10161C 60%, #0B0F13 100%);
+    }
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(10px)}
+    .ring-soft{box-shadow: inset 0 0 0 1px rgba(255,255,255,.10)}
+    .tap{min-height:52px}
+    .chip{background:rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08)}
+    .pressable:active{transform:translateY(1px); transition:transform .04s}
+    button,a{-webkit-tap-highlight-color:transparent}
+  </style>
+  <script>
+  // allow 1+ tokens (hashes). generate at: https://emn178.github.io/online-tools/sha256.html
+  window.QL_LOCK = {
+    tokenHashes: [
+      "2dfdc7347827cdd347d388b6021e9a96aceb56078e2a4eec9345f257add1d1eb"
+    ],
+    appKey: "quicklocation-v1"
+  };
+</script>
+
+<script src="lock.js"></script>
+
+</head>
+<body class="h-full bg-base-900 text-white antialiased">
+  <main class="min-h-full">
+    <!-- HEADER (calmer) -->
+    <header class="sticky top-0 z-30 hero border-b border-white/10">
+      <div class="mx-auto max-w-xl px-4 pt-[calc(16px+var(--safe-top))] pb-4">
+        <div class="flex items-center gap-3">
+          <a href="index.html" class="h-11 w-11 rounded-xl glass ring-soft flex items-center justify-center">
+            <img src="icons/icon-512.png" alt="" class="h-9 w-9 opacity-90" />
+          </a>
+          <div class="flex-1">
+            <h1 class="text-[22px] font-semibold leading-6 tracking-tight">Locations</h1>
+            <p id="meta" class="text-xs text-white/70 mt-1">Loading…</p>
+          </div>
+          <button id="reloadBtn" class="tap px-3 rounded-xl glass ring-soft text-sm pressable">Reload</button>
+        </div>
+
+        <!-- Search -->
+        <div class="mt-3">
+          <div class="flex gap-2 items-stretch">
+            <div class="flex-1 relative">
+              <input id="q" autocomplete="off" inputmode="search"
+                     placeholder="Search by name or area…"
+                     class="tap w-full rounded-xl px-4 pr-10 glass ring-soft placeholder:text-white/45 outline-none focus:ring-2 focus:ring-brand-600/40" />
+              <svg class="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/45 pointer-events-none"
+                   viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" stroke-width="1.5"/><path d="M20 20l-3.2-3.2" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <button id="clearBtn" class="tap px-3 rounded-xl glass ring-soft pressable" aria-label="Clear search">✕</button>
+          </div>
+          <div id="chips" class="mt-3 flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <section class="mx-auto max-w-xl px-4 pb-[110px]">
+      <div id="resultsInfo" class="pt-4 text-xs text-white/60"></div>
+      <div id="list" class="pt-2 space-y-3"></div>
+    </section>
+
+    <!-- FLOATING DOCK (tiny, not a big modal) -->
+<div id="dock"
+     class="fixed left-1/2 -translate-x-1/2 bottom-[calc(18px+env(safe-area-inset-bottom,0))] z-50
+            rounded-full glass ring-soft shadow-card
+            px-2 py-2 flex items-center gap-1">
+  <button id="routeClearBtn" class="shrink-0 h-10 w-10 rounded-full hover:bg-white/[0.06]" title="Clear route">
+    <svg class="mx-auto h-5 w-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path stroke-width="1.5" d="M6 6l12 12M18 6L6 18"/>
+    </svg>
+  </button>
+
+  <button id="routeBuildBtn"
+          class="tap h-10 rounded-full px-4 sm:px-5 font-semibold text-sm bg-brand-600 text-black disabled:opacity-60 relative whitespace-nowrap">
+    <span class="hidden sm:inline">Build Route</span>
+    <span class="sm:hidden inline">Route</span>
+    <!-- tiny badge; only shown when n>0 -->
+    <span id="routeBadge"
+          class="ml-2 inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full
+                 text-[11px] text-white bg-black/25 ring-1 ring-white/10 hidden select-none"></span>
+  </button>
+</div>
+
+    <!-- TOAST (reused) -->
+    <div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 bottom-[calc(80px+var(--safe-bottom))] z-50">
+      <div class="rounded-xl glass ring-soft px-3 py-2 text-sm shadow-card">Done</div>
+    </div>
+  </main>
+<!-- ACCESS GATE (Tailwind-based) -->
+<div id="ql-gate" class="fixed inset-0 z-[1000] hidden">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+
+  <div class="relative h-full w-full grid place-items-center p-5">
+    <div class="w-full max-w-sm rounded-2xl bg-base-800 text-white border border-white/10 shadow-xl">
+      <div class="p-5">
+        <div class="flex items-center gap-3">
+          <img src="icons/icon-192.png" class="h-10 w-10 rounded-xl ring-1 ring-white/10" alt="">
+          <div>
+            <h2 class="text-base font-semibold leading-5">Access</h2>
+            <p class="text-xs text-white/70">Enter your one-time token to unlock this device.</p>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <input id="ql-gate-token" type="password" autocomplete="one-time-code"
+                 class="w-full rounded-xl px-3 py-3 bg-white/5 ring-1 ring-white/10 outline-none
+                        focus:ring-2 focus:ring-brand-600 placeholder:text-white/40"
+                 placeholder="Token">
+          <p id="ql-gate-msg" class="mt-2 text-xs text-rose-300 hidden">Invalid token.</p>
+        </div>
+
+        <div class="mt-4 flex items-center gap-2">
+          <button id="ql-gate-cancel" class="tap px-3 py-2 rounded-xl ring-1 ring-white/10 hover:bg-white/5 flex-1">
+            Cancel
+          </button>
+          <button id="ql-gate-submit" class="tap px-3 py-2 rounded-xl bg-brand-600 text-black font-semibold flex-1">
+            Unlock
+          </button>
+        </div>
+
+        <div class="mt-3 text-[11px] text-white/50 flex items-center justify-between">
+          <button id="ql-gate-reset" class="underline decoration-dotted">Reset access on this device</button>
+          <span id="ql-gate-dev" class="hidden"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <script>
+    // ------------------------------ DOM
+    const JSON_URL = 'locations.json';
+    const listEl = document.getElementById('list');
+    const chipsEl = document.getElementById('chips');
+    const resultsInfo = document.getElementById('resultsInfo');
+    const q = document.getElementById('q');
+    const clearBtn = document.getElementById('clearBtn');
+    const metaEl = document.getElementById('meta');
+    const reloadBtn = document.getElementById('reloadBtn');
+
+    const dock = document.getElementById('dock');
+    const routeCount = document.getElementById('routeCount');
+    const routeBuildBtn = document.getElementById('routeBuildBtn');
+    const routeClearBtn = document.getElementById('routeClearBtn');
+
+    const toast = document.getElementById('toast');
+    function showToast(msg='Done'){
+      toast.querySelector('div').textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(()=>toast.classList.add('hidden'), 1200);
+      if (navigator.vibrate) navigator.vibrate(12);
+    }
+
+    // ------------------------------ Helpers
+    function normalize(s=""){
+      let x=(s||"").toString().toLowerCase().trim();
+      x=x.replace(/2/g,'a').replace(/3/g,'a').replace(/5/g,'kh').replace(/6/g,'t').replace(/7/g,'h').replace(/8/g,'q').replace(/9/g,'s');
+      x=x.replace(/[\W_]+/g,'').replace(/([a-z])\1+/g,'$1');
+      const vowelless=x.replace(/[aeiou]/g,''); return {base:x, vowelless};
+    }
+    function makeKey(name, area){
+      const a=normalize(name||''), b=normalize(area||''), c=normalize((name||'')+(area||'')); 
+      return [a.base,a.vowelless,b.base,b.vowelless,c.base,c.vowelless].filter(Boolean).join(' ');
+    }
+    function escapeHtml(s=""){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+    function mapsSingleHref(item){
+      return item.link || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((item.name + ' ' + (item.area||'')).trim())}`;
+    }
+    function mapsPoint(item){
+      if (typeof item.lat === 'number' && typeof item.lng === 'number') return `${item.lat},${item.lng}`;
+      return null;
+    }
+    function hueFromString(str=''){ let h=0; for (let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))>>>0; return h%360; }
+    function accentStyleForBrand(brand=''){
+      const h=hueFromString(brand||''); const a1=`hsl(${h} 90% 60%)`; const a2=`hsl(${(h+30)%360} 85% 50%)`;
+      return `background: linear-gradient(180deg, ${a1}, ${a2});`;
+    }
+
+    // ------------------------------ Route state (compact dock)
+    const ROUTE_KEY = 'route:selected:v1';
+    let selectedKeys = JSON.parse(localStorage.getItem(ROUTE_KEY) || '[]');
+    function saveRoute(){ localStorage.setItem(ROUTE_KEY, JSON.stringify(selectedKeys)); }
+    function isSelected(key){ return selectedKeys.indexOf(key) !== -1; }
+    function toggleRoute(key){
+      const i = selectedKeys.indexOf(key);
+      if (i === -1) selectedKeys.push(key); else selectedKeys.splice(i,1);
+      saveRoute(); updateDock(); // compact dock replaces old modal
+    }
+    function clearRoute(){
+      selectedKeys = [];
+      saveRoute();
+      updateDock();
+      render(currentItems, currentTerm);
+    }
+const routeBadge = document.getElementById('routeBadge');
+
+function updateDock(){
+  const n = selectedKeys.length;
+
+  // enable/disable button
+  routeBuildBtn.disabled = n < 1;
+
+  // show a tiny badge instead of long text; keep it super short
+  if (n > 0) {
+    routeBadge.textContent = n > 99 ? '99+' : String(n);
+    routeBadge.classList.remove('hidden');
+    dock.style.opacity = '1';
+  } else {
+    routeBadge.classList.add('hidden');
+    dock.style.opacity = '0.92';
+  }
+}
+
+    function buildRouteURL(){
+      if (selectedKeys.length < 1) return null;
+      const byKey = new Map(locations.map(i => [i.__key, i]));
+      const chosen = selectedKeys.map(k => byKey.get(k)).filter(Boolean);
+      const usable = chosen.map(it => ({ it, point: mapsPoint(it) })).filter(x => !!x.point);
+      if (!usable.length) { showToast('No stops have coordinates.'); return null; }
+      if (usable.length < chosen.length) showToast('Some stops were skipped (no coords).');
+      const origin = 'Current+Location';
+      const destination = usable[usable.length - 1].point;
+      const mids = usable.slice(0,-1).map(x => x.point);
+      const p = new URLSearchParams({ api:'1', travelmode:'driving', origin, destination });
+      if (mids.length) p.set('waypoints', mids.join('|'));
+      return `https://www.google.com/maps/dir/?${p.toString()}`;
+    }
+
+    // ------------------------------ Card
+    function card(item, orderMap){
+      const label = item.area ? `${escapeHtml(item.name)} <span class="opacity-80">(${escapeHtml(item.area)})</span>` : escapeHtml(item.name);
+      const href = mapsSingleHref(item);
+      const stripe = accentStyleForBrand(item.name);
+      const added = isSelected(item.__key);
+      const orderBadge = added ? `<span class="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-lime-500/20 text-lime-200 text-[11px] px-1">${orderMap.get(item.__key)}</span>` : '';
+      const point = mapsPoint(item);
+      const disableRoute = point ? '' : 'data-disabled="1" title="No coordinates for routes"';
+      return `
+        <article class="group rounded-2xl glass ring-soft p-3 shadow-card relative overflow-hidden">
+          <div class="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl" style="${stripe}"></div>
+          <div class="relative z-[1] flex items-center gap-3">
+            <div class="h-10 w-10 rounded-xl glass ring-soft flex items-center justify-center shrink-0">
+              <svg class="h-6 w-6 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <path stroke-width="1.5" d="M12 22s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"/>
+                <circle cx="12" cy="11" r="2.5" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <div class="text-[15px] font-semibold leading-6">${label}</div>
+              <div class="mt-3 flex gap-2">
+                <a href="${href}" target="_blank" rel="noopener"
+                   class="tap inline-flex items-center justify-center px-3 rounded-xl bg-brand-600 text-black font-semibold">Open</a>
+                <button class="tap routeBtn inline-flex items-center justify-center px-3 rounded-xl chip text-white/90 ${added?'ring-2 ring-lime-500/70':''}" ${disableRoute}>
+                  ${added ? 'Added' : 'Add to Route'}${orderBadge}
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    // ------------------------------ Data + search
+    let locations = [];
+    let fuse = null;
+    let currentItems = [];
+    let currentTerm = '';
+
+    function initFuse(){
+      locations.forEach((loc) => {
+        loc._key = makeKey(loc.name, loc.area);
+        loc.__key = (loc.link ? `L|${loc.link}` :
+                     `N|${(loc.name||'').trim()}|${(loc.area||'').trim()}|${loc.lat??''}|${loc.lng??''}`).toLowerCase();
+      });
+      fuse = new Fuse(locations, {
+        keys:[{name:'_key',weight:.75},{name:'name',weight:.15},{name:'area',weight:.10}],
+        threshold:.33, ignoreLocation:true
+      });
+    }
+
+    function render(items, term=''){
+      currentItems = items.slice();
+      currentTerm = term;
+      const count = items?.length || 0;
+      const termBadge = term ? ` for <span class="font-semibold text-white/80">“${escapeHtml(term)}”</span>` : '';
+      resultsInfo.innerHTML = `${count} result${count===1?'':'s'}${termBadge}`;
+      if(!count){
+        listEl.innerHTML = `<div class="text-center text-white/70 py-12">No locations yet. Add entries to <span class="font-semibold">locations.json</span>.</div>`;
+        updateDock();
+        return;
+      }
+      const orderMap = new Map();
+      selectedKeys.forEach((k, i) => orderMap.set(k, i+1));
+      const sorted = items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'') || (a.area||'').localeCompare(b.area||''));
+      listEl.innerHTML = sorted.map(i => card(i, orderMap)).join('');
+      listEl.querySelectorAll('a').forEach(a=>{a.addEventListener('click', (ev) => ev.stopPropagation());});
+      listEl.querySelectorAll('.routeBtn').forEach(btn=>{
+        btn.addEventListener('click', (ev)=>{
+          ev.stopPropagation(); ev.preventDefault();
+          if (btn.dataset.disabled === '1') { showToast('This location needs coordinates to be used in a route.'); return; }
+          const card = btn.closest('article');
+          const key = (()=>{ // read key the same way we created it
+            const idx = [...listEl.children].indexOf(card);
+            const item = sorted[idx];
+            return item.__key;
+          })();
+          toggleRoute(key);
+          const added = isSelected(key);
+          const order = selectedKeys.indexOf(key) + 1;
+          btn.innerHTML = `${added ? 'Added' : 'Add to Route'}${added ? `<span class="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-lime-500/20 text-lime-200 text-[11px] px-1">${order}</span>` : ''}`;
+          btn.classList.toggle('ring-2', added);
+          btn.classList.toggle('ring-lime-500/70', added);
+        });
+      });
+      updateDock();
+    }
+
+    function doSearch(){
+      const term=(q.value||'').trim();
+      if(!term){ render(locations, ''); return; }
+      const n=normalize(term);
+      const A=fuse.search(n.base).map(r=>r.item);
+      const B=fuse.search(n.vowelless).map(r=>r.item);
+      const seen=new Set(); const merged=[...A,...B].filter(x=>!seen.has(x)&&seen.add(x));
+      render(merged, term);
+    }
+
+    function buildChips(){
+      const freq = new Map();
+      for (const it of locations) freq.set(it.name, (freq.get(it.name)||0)+1);
+      const top = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([name])=>name);
+      const frag = top.map(n=>{
+        let h=0; for (let i=0;i<n.length;i++) h=(h*31+n.charCodeAt(i))>>>0; const hue=h%360;
+        const bg = `linear-gradient(180deg, hsl(${hue} 90% 60%), hsl(${(hue+30)%360} 85% 50%))`;
+        return `<button class="chip pressable text-sm rounded-xl px-3 py-1.5" data-chip="${escapeHtml(n)}" style="background:${bg}; color:#0B0F13; font-weight:600">${escapeHtml(n)}</button>`;
+      }).join(' ');
+      chipsEl.innerHTML = frag;
+      document.querySelectorAll('#chips [data-chip]').forEach(btn=>{
+        btn.addEventListener('click', () => { q.value = btn.getAttribute('data-chip'); doSearch(); if (document.activeElement === q) q.blur(); });
+      });
+    }
+
+    async function loadJson({bust=false} = {}){
+      try{
+        const url = bust ? `${JSON_URL}?t=${Date.now()}` : JSON_URL;
+        const res = await fetch(url, { cache:'no-store' });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        locations = Array.isArray(data) ? data : (data.locations || []);
+        initFuse(); render(locations,''); buildChips();
+        const updated=(data.updated||'')?.trim?.()||''; const version=(data.version||'')?.trim?.()||'';
+        const meta=[updated?`Updated: ${updated}`:'', version?`• v${version}`:'', `• ${locations.length} locations`].filter(Boolean).join(' ');
+        metaEl.textContent=meta;
+      }catch(e){
+        metaEl.textContent='Failed to load locations.json';
+        listEl.innerHTML = `<div class="text-center text-rose-300 py-12">Could not load <span class="font-semibold">locations.json</span>.</div>`;
+      }
+    }
+
+    // ------------------------------ wire up
+    let debounce;
+    q.addEventListener('input', ()=>{ clearTimeout(debounce); debounce=setTimeout(doSearch,80); });
+    clearBtn.addEventListener('click', ()=>{ q.value=''; doSearch(); });
+    reloadBtn.addEventListener('click', ()=>loadJson({bust:true}));
+    routeBuildBtn.addEventListener('click', ()=>{ const url = buildRouteURL(); if (url) window.open(url, '_blank', 'noopener'); });
+    routeClearBtn.addEventListener('click', clearRoute);
+
+    // SW optional
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+      navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+    }
+
+    loadJson();
+    updateDock();
+  </script>
+</body>
+</html>

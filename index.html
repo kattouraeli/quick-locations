@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Quick Locations • Curvea</title>
-  <meta name="description" content="Fast search for saved delivery locations. One tap opens Google Maps." />
+  <meta name="description" content="Fast access to saved delivery locations and predefined routes by zone." />
 
-  <!-- PWA basics (no offline) -->
+  <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0B0F13">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,12 +14,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-  <!-- Typeface -->
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
-  <!-- Tailwind & Fuse -->
+  <!-- Tailwind (same tokens as your locations page) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -30,403 +30,208 @@
             base:  { 900:'#0B0F13', 800:'#10161C', 700:'#141C24', 600:'#1B2430', 500:'#223042' },
             brand: { 500:'#69C5FF', 600:'#3DAAFB', 700:'#2696E4', 800:'#1F7CC0' },
             lime:  { 500:'#A2F26D' }
-          },
-          boxShadow: {
-            card: '0 10px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05)'
           }
         }
       }
     }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
 
   <style>
     :root{--safe-top:env(safe-area-inset-top,0);--safe-bottom:env(safe-area-inset-bottom,0)}
     body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial}
-    .tap{min-height:52px}
-    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(10px)}
-    .ring-soft{box-shadow: inset 0 0 0 1px rgba(255,255,255,.1)}
     .hero{
       background:
         radial-gradient(900px 420px at 20% -160px, rgba(61,170,251,.25), transparent 70%),
         radial-gradient(900px 420px at 80% -160px, rgba(162,242,109,.18), transparent 70%),
         linear-gradient(180deg,#0B0F13 0%, #10161C 60%, #0B0F13 100%);
     }
-    .floating{position:fixed; right:16px; bottom:calc(70px + var(--safe-bottom)); z-index:60}
-    .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(24px + var(--safe-bottom)); z-index:70}
-    .pressable:active{transform:translateY(1px); transition:transform .04s}
-    .chip{background:rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08)}
-    .cardAccent{position:absolute; left:0; top:0; bottom:0; width:4px; border-top-left-radius:16px; border-bottom-left-radius:16px}
-    .scrollpad{padding-bottom:calc(110px + var(--safe-bottom))}
-    .routebar{transform:translateY(110%); transition:transform .18s ease}
-    .routebar.show{transform:translateY(0)}
-    button, a { -webkit-tap-highlight-color: transparent; }
+    .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(10px)}
+    .ring-soft{box-shadow: inset 0 0 0 1px rgba(255,255,255,.1)}
+    .tap{min-height:52px}
+    button,a{-webkit-tap-highlight-color:transparent}
   </style>
+
+<script>
+  // allow 1+ tokens (hashes). generate at: https://emn178.github.io/online-tools/sha256.html
+  window.QL_LOCK = {
+    tokenHashes: [
+      "2dfdc7347827cdd347d388b6021e9a96aceb56078e2a4eec9345f257add1d1eb"
+    ],
+    appKey: "quicklocation-v1"
+  };
+</script>
+
+<script src="lock.js"></script>
+
 </head>
-<body class="h-full bg-base-900 text-white">
-  <main class="min-h-full">
-    <!-- HEADER -->
-    <header class="sticky top-0 z-30 hero border-b border-white/10">
-      <div class="mx-auto max-w-xl px-4 pt-[calc(16px+var(--safe-top))] pb-4">
+<body class="h-full bg-base-900 text-white antialiased">
+  <main class="min-h-full grid grid-rows-[auto_1fr_auto]">
+    <!-- HERO -->
+    <header class="hero border-b border-white/10">
+      <div class="max-w-xl mx-auto px-5 pt-[calc(28px+var(--safe-top))] pb-8">
         <div class="flex items-center gap-3">
-          <div class="h-11 w-11 rounded-xl glass ring-soft flex items-center justify-center">
+          <div class="h-12 w-12 rounded-2xl glass ring-soft flex items-center justify-center">
             <img src="icons/icon-512.png" alt="" class="h-10 w-10 opacity-90" />
           </div>
-          <div class="flex-1">
-            <h1 class="text-[26px] font-semibold leading-6 tracking-tight">Quick Locations</h1>
-            <p id="meta" class="text-xs text-white/70 mt-1">Loading…</p>
-            <p class="text-[11px] text-white/45 mt-1">
-              <button id="aboutBtn" class="underline decoration-dotted hover:text-white/70">Designed by Curvea</button>
-            </p>
+          <div>
+            <h1 class="text-lg font-bold tracking-tight">Quick Locations</h1>
+            <p class="text-sm text-white/70">Fast access to Locations and predefined Zones.</p>
           </div>
-          <div class="flex gap-2">
-            <button id="reloadBtn" class="tap px-3 rounded-xl glass ring-soft text-sm pressable">Reload</button>
-            <button id="installBtn" class="tap px-3 rounded-xl glass ring-soft text-sm pressable">Install</button>
-          </div>
-        </div>
-
-        <!-- Search + Quick Filters -->
-        <div class="mt-3">
-          <div class="flex gap-2 items-stretch">
-            <div class="flex-1 relative">
-              <input id="q" autocomplete="off" inputmode="search"
-                     placeholder="Search: spinis jnah / mtayleb / grab go…"
-                     class="tap w-full rounded-xl px-4 pr-10 glass ring-soft placeholder:text-white/45 outline-none focus:ring-2 focus:ring-brand-600/40" />
-              <svg class="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/45 pointer-events-none"
-                   viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" stroke-width="1.5"/><path d="M20 20l-3.2-3.2" stroke-width="1.5"/>
-              </svg>
-            </div>
-            <button id="clearBtn" class="tap px-3 rounded-xl glass ring-soft pressable" aria-label="Clear search">✕</button>
-          </div>
-          <div id="chips" class="mt-3 flex flex-wrap gap-2"></div>
         </div>
       </div>
     </header>
 
-    <!-- CONTENT -->
-    <section class="mx-auto max-w-xl px-4 scrollpad">
-      <div id="resultsInfo" class="pt-4 text-xs text-white/60"></div>
-      <div id="list" class="pt-2 space-y-3"></div>
+    <!-- CENTER STAGE -->
+    <section class="px-5">
+      <div class="max-w-xl mx-auto py-10 md:py-14">
+        <!-- Big logo -->
+        <div class="relative mx-auto w-40 h-40 sm:w-48 sm:h-48">
+          <div class="absolute inset-0 rounded-[28px] bg-white/5 ring-1 ring-white/10 blur-[1px]"></div>
+          <img src="icons/icon-512.png" alt="App Logo"
+               class="relative z-[1] w-full h-full object-contain rounded-[28px] shadow-[0_20px_60px_rgba(0,0,0,.45)]" />
+        </div>
+
+        <!-- Headline -->
+        <div class="mt-6 text-center">
+          <h2 class="text-2xl md:text-3xl font-semibold tracking-tight">Deliver faster. Navigate smarter.</h2>
+          <p class="mt-2 text-white/70 text-sm md:text-base">Open any saved place in one tap, or launch a full zone route in Google Maps.</p>
+        </div>
+
+        <!-- Primary actions -->
+        <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <a href="locations.html"
+             class="tap inline-flex items-center justify-center rounded-2xl px-4 py-4 font-semibold text-sm
+                    bg-brand-600 text-black shadow-lg shadow-[rgba(61,170,251,0.25)]
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-brand-600">
+            View Locations
+          </a>
+
+          <a href="zones.html"
+             class="tap inline-flex items-center justify-center rounded-2xl px-4 py-4 font-semibold text-sm
+                    ring-1 ring-white/10 text-white hover:bg-white/[0.06]
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white/30">
+            View Zones
+          </a>
+
+          <button id="installBtn"
+             class="tap inline-flex items-center justify-center rounded-2xl px-4 py-4 font-semibold text-sm
+                    ring-1 ring-white/10 text-white hover:bg-white/[0.06]
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:ring-white/30">
+            Install App
+          </button>
+        </div>
+
+        <!-- Small note -->
+        <p class="mt-3 text-center text-xs text-white/60">Works best on Android Chrome. Internet required for Maps.</p>
+      </div>
     </section>
 
-    <!-- FLOATING: To Top -->
-    <div class="floating flex flex-col items-end gap-2">
-      <button id="toTopBtn" class="hidden tap px-3 py-2 rounded-2xl glass ring-soft shadow-card text-sm pressable" aria-label="Scroll to top">↑ Top</button>
-    </div>
+    <!-- FOOTER -->
+<footer class="border-t border-white/10">
+  <div
+    class="max-w-xl mx-auto px-5 py-5 md:py-4
+           flex flex-col md:flex-row items-center justify-center
+           gap-2 md:gap-3 text-[11px] md:text-xs text-white/70
+           text-center md:text-left"
+    style="padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));"
+  >
+    <span class="order-1 md:order-none">© <span id="y"></span> · Quick Locations</span>
 
-    <!-- ROUTE BAR -->
-    <div id="routeBar" class="routebar fixed left-0 right-0 bottom-0 z-50 bg-base-800/95 backdrop-blur border-t border-white/10" aria-hidden="true">
-      <div class="max-w-xl mx-auto px-4 py-2 flex items-center gap-2">
-        <span id="routeCount" class="inline-flex items-center gap-1 rounded-full px-3 py-2 glass ring-soft text-xs">0 selected</span>
-        <span id="routeTip" class="text-[12px] text-white/70 truncate">Pick stops, then Build Route →</span>
-        <div class="ml-auto flex items-center gap-2">
-          <button id="routeClearBtn" class="tap px-3 rounded-xl glass ring-soft pressable">Clear</button>
-          <button id="routeBuildBtn" class="tap px-4 rounded-xl bg-brand-600 text-black font-semibold pressable disabled:opacity-60" disabled>Build Route</button>
+    <span class="hidden md:inline select-none">•</span>
+
+    <a href="https://curveadesign.com"
+       class="order-2 md:order-none inline-flex items-center justify-center gap-2 hover:text-white transition-colors">
+      <img src="https://curveadesign.com/assets/img/CurveaLogo.svg"
+           alt="Curvea Design"
+           class="h-4 w-auto opacity-80 md:h-5" />
+      <span class="font-medium">Designed &amp; powered by Curvea Design</span>
+    </a>
+  </div>
+</footer>
+  </main>
+<!-- ACCESS GATE (Tailwind-based) -->
+<div id="ql-gate" class="fixed inset-0 z-[1000] hidden">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+
+  <div class="relative h-full w-full grid place-items-center p-5">
+    <div class="w-full max-w-sm rounded-2xl bg-base-800 text-white border border-white/10 shadow-xl">
+      <div class="p-5">
+        <div class="flex items-center gap-3">
+          <img src="icons/icon-192.png" class="h-10 w-10 rounded-xl ring-1 ring-white/10" alt="">
+          <div>
+            <h2 class="text-base font-semibold leading-5">Access</h2>
+            <p class="text-xs text-white/70">Enter your one-time token to unlock this device.</p>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <input id="ql-gate-token" type="password" autocomplete="one-time-code"
+                 class="w-full rounded-xl px-3 py-3 bg-white/5 ring-1 ring-white/10 outline-none
+                        focus:ring-2 focus:ring-brand-600 placeholder:text-white/40"
+                 placeholder="Token">
+          <p id="ql-gate-msg" class="mt-2 text-xs text-rose-300 hidden">Invalid token.</p>
+        </div>
+
+        <div class="mt-4 flex items-center gap-2">
+          <button id="ql-gate-cancel" class="tap px-3 py-2 rounded-xl ring-1 ring-white/10 hover:bg-white/5 flex-1">
+            Cancel
+          </button>
+          <button id="ql-gate-submit" class="tap px-3 py-2 rounded-xl bg-brand-600 text-black font-semibold flex-1">
+            Unlock
+          </button>
+        </div>
+
+        <div class="mt-3 text-[11px] text-white/50 flex items-center justify-between">
+          <button id="ql-gate-reset" class="underline decoration-dotted">Reset access on this device</button>
+          <span id="ql-gate-dev" class="hidden"></span>
         </div>
       </div>
     </div>
+  </div>
+</div>
 
-    <!-- ABOUT -->
-    <dialog id="aboutSheet" class="w-full max-w-xl bg-base-800 text-white rounded-t-2xl open:animate-[slideUp_.2s_ease]">
-      <form method="dialog" class="p-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold">About</h2>
-          <button class="tap px-3 rounded-xl glass ring-soft pressable">Close</button>
-        </div>
-        <p class="text-sm text-white/80 mt-3">
-          Designed by <strong>Curvea</strong>. Installable on Android. Use <em>Open in Maps</em> for a single stop, or <em>Add to Route</em> to chain multiple stops.
-        </p>
-        <div class="mt-3 text-[12px] text-white/60" id="aboutMeta"></div>
-      </form>
-    </dialog>
-
-    <!-- INSTALL HELP -->
-    <dialog id="installHelp" class="w-full max-w-xl bg-base-800 text-white rounded-t-2xl open:animate-[slideUp_.2s_ease]">
-      <form method="dialog" class="p-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold">Install help</h2>
-          <button class="tap px-3 rounded-xl glass ring-soft pressable">Close</button>
-        </div>
-        <div id="installHelpBody" class="text-sm text-white/80 mt-3 space-y-2"></div>
-      </form>
-    </dialog>
-
-    <!-- TOAST -->
-    <div id="toast" class="toast hidden">
-      <div class="rounded-xl glass ring-soft px-3 py-2 text-sm shadow-card">Done</div>
-    </div>
-  </main>
-
+  <!-- Install logic -->
   <script>
-    // ------------------------------ DOM refs
-    const JSON_URL = 'locations.json';
-    const listEl = document.getElementById('list');
-    const chipsEl = document.getElementById('chips');
-    const resultsInfo = document.getElementById('resultsInfo');
-    const q = document.getElementById('q');
-    const clearBtn = document.getElementById('clearBtn');
-    const metaEl = document.getElementById('meta');
-    const reloadBtn = document.getElementById('reloadBtn');
-    const aboutBtn = document.getElementById('aboutBtn');
-    const aboutSheet = document.getElementById('aboutSheet');
-    const aboutMeta = document.getElementById('aboutMeta');
-    const toast = document.getElementById('toast');
-    const toTopBtn = document.getElementById('toTopBtn');
-
-    const routeBar = document.getElementById('routeBar');
-    const routeCount = document.getElementById('routeCount');
-    const routeTip = document.getElementById('routeTip');
-    const routeBuildBtn = document.getElementById('routeBuildBtn');
-    const routeClearBtn = document.getElementById('routeClearBtn');
-
-    function showToast(msg='Done'){
-      toast.querySelector('div').textContent = msg;
-      toast.classList.remove('hidden');
-      clearTimeout(showToast._t);
-      showToast._t = setTimeout(()=>toast.classList.add('hidden'), 1200);
-      if (navigator.vibrate) navigator.vibrate(12);
-    }
-    window.addEventListener('scroll', () => {
-      const y = window.scrollY || document.documentElement.scrollTop;
-      if (y > 240) toTopBtn.classList.remove('hidden'); else toTopBtn.classList.add('hidden');
-    });
-    toTopBtn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-    aboutBtn.addEventListener('click', () => aboutSheet.showModal());
-
-    function normalize(s=""){
-      let x=(s||"").toString().toLowerCase().trim();
-      x=x.replace(/2/g,'a').replace(/3/g,'a').replace(/5/g,'kh').replace(/6/g,'t').replace(/7/g,'h').replace(/8/g,'q').replace(/9/g,'s');
-      x=x.replace(/[\W_]+/g,'').replace(/([a-z])\1+/g,'$1');
-      const vowelless=x.replace(/[aeiou]/g,''); return {base:x, vowelless};
-    }
-    function makeKey(name, area){
-      const a=normalize(name||''), b=normalize(area||''), c=normalize((name||'')+(area||'')); 
-      return [a.base,a.vowelless,b.base,b.vowelless,c.base,c.vowelless].filter(Boolean).join(' ');
-    }
-    function escapeHtml(s=""){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-
-    function mapsSingleHref(item){
-      return item.link || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((item.name + ' ' + (item.area||'')).trim())}`;
-    }
-    function mapsPoint(item){
-      if (typeof item.lat === 'number' && typeof item.lng === 'number') {
-        return `${item.lat},${item.lng}`;
-      }
-      return null;
-    }
-
-    function hueFromString(str=''){
-      let h=0; for (let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) >>> 0;
-      return h % 360;
-    }
-    function accentStyleForBrand(brand=''){
-      const h = hueFromString(brand || '');
-      const a1 = `hsl(${h} 90% 60%)`;
-      const a2 = `hsl(${(h+30)%360} 85% 50%)`;
-      return `background: linear-gradient(180deg, ${a1}, ${a2});`;
-    }
-
-    const ROUTE_KEY = 'route:selected:v1';
-    let selectedKeys = JSON.parse(localStorage.getItem(ROUTE_KEY) || '[]');
-    function saveRoute(){ localStorage.setItem(ROUTE_KEY, JSON.stringify(selectedKeys)); }
-    function isSelected(key){ return selectedKeys.indexOf(key) !== -1; }
-    function toggleRoute(key){
-      const i = selectedKeys.indexOf(key);
-      if (i === -1) selectedKeys.push(key); else selectedKeys.splice(i,1);
-      saveRoute(); updateRouteBar();
-    }
-    function clearRoute(){ selectedKeys = []; saveRoute(); updateRouteBar(); render(currentItems, currentTerm); }
-
-    function updateRouteBar(){
-      const n = selectedKeys.length;
-      routeCount.textContent = `${n} selected`;
-      routeBuildBtn.disabled = n < 1;
-      routeTip.textContent = n ? 'Tap Build Route to start navigation.' : 'Pick stops, then Build Route →';
-      if (n > 0) {
-        routeBar.classList.add('show');
-        routeBar.setAttribute('aria-hidden','false');
-      } else {
-        routeBar.classList.remove('show');
-        routeBar.setAttribute('aria-hidden','true');
-      }
-    }
-
-    function buildRouteURL(){
-      if (selectedKeys.length < 1) return null;
-      const byKey = new Map(locations.map(i => [i.__key, i]));
-      const chosen = selectedKeys.map(k => byKey.get(k)).filter(Boolean);
-      const usable = chosen.map(it => ({ it, point: mapsPoint(it) })).filter(x => !!x.point);
-      if (!usable.length) { showToast('No stops have coordinates.'); return null; }
-      if (usable.length < chosen.length) showToast('Some stops were skipped (no coords).');
-      const origin = 'Current+Location';
-      const destination = usable[usable.length - 1].point;
-      const mids = usable.slice(0,-1).map(x => x.point);
-      const p = new URLSearchParams({ api:'1', travelmode:'driving', origin, destination });
-      if (mids.length) p.set('waypoints', mids.join('|'));
-      return `https://www.google.com/maps/dir/?${p.toString()}`;
-    }
-
-    function card(item, orderMap){
-      const label = item.area ? `${escapeHtml(item.name)} <span class="opacity-80">(${escapeHtml(item.area)})</span>` : escapeHtml(item.name);
-      const href = mapsSingleHref(item);
-      const stripe = accentStyleForBrand(item.name);
-      const added = isSelected(item.__key);
-      const orderBadge = added ? `<span class="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-lime-500/20 text-lime-200 text-[11px] px-1">${orderMap.get(item.__key)}</span>` : '';
-      const point = mapsPoint(item);
-      const routeBtnState = point ? '' : 'data-disabled="1" title="No coordinates for routes"';
-      return `
-        <article class="card group rounded-2xl glass ring-soft p-3 shadow-card relative overflow-hidden pressable"
-                 data-key="${escapeHtml(item.__key)}">
-          <div class="cardAccent" style="${stripe}"></div>
-          <div class="relative z-[1] flex items-center gap-3">
-            <div class="h-10 w-10 rounded-xl glass ring-soft flex items-center justify-center shrink-0">
-              <svg class="h-6 w-6 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                <path stroke-width="1.5" d="M12 22s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"/>
-                <circle cx="12" cy="11" r="2.5" stroke-width="1.5"/>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <div class="text-[15px] font-semibold leading-6">${label}</div>
-              <div class="mt-3 flex gap-2">
-                <a href="${href}" target="_blank" rel="noopener"
-                   class="openBtn tap inline-flex items-center justify-center px-3 rounded-xl bg-brand-600 text-black font-semibold">Open in Maps</a>
-                <button class="routeBtn tap inline-flex items-center justify-center px-3 rounded-xl chip text-white/90 ${added?'ring-2 ring-lime-500/70':''}" ${routeBtnState}>
-                  ${added ? 'Added' : 'Add to Route'}${orderBadge}
-                </button>
-              </div>
-            </div>
-          </div>
-        </article>
-      `;
-    }
-
-    let locations = [];
-    let fuse = null;
-    let currentItems = [];
-    let currentTerm = '';
-
-    function initFuse(){
-      locations.forEach((loc, idx) => {
-        loc._key = makeKey(loc.name, loc.area);
-        loc.__key = (loc.link ? `L|${loc.link}` :
-                     `N|${(loc.name||'').trim()}|${(loc.area||'').trim()}|${loc.lat??''}|${loc.lng??''}`).toLowerCase();
-      });
-      fuse = new Fuse(locations, {
-        keys:[{name:'_key',weight:.75},{name:'name',weight:.15},{name:'area',weight:.10}],
-        threshold:.35, ignoreLocation:true
-      });
-    }
-
-    function render(items, term=''){
-      currentItems = items.slice();
-      currentTerm = term;
-      const count = items?.length || 0;
-      const termBadge = term ? ` for <span class="font-semibold text-white/80">“${escapeHtml(term)}”</span>` : '';
-      resultsInfo.innerHTML = `${count} result${count===1?'':'s'}${termBadge}`;
-      if(!count){
-        listEl.innerHTML = `<div class="text-center text-white/70 py-12">No locations yet. Add entries to <span class="font-semibold">locations.json</span>.</div>`;
-        updateRouteBar();
-        return;
-      }
-      const orderMap = new Map();
-      selectedKeys.forEach((k, i) => orderMap.set(k, i+1));
-      const sorted = items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'') || (a.area||'').localeCompare(b.area||''));
-      listEl.innerHTML = sorted.map(i => card(i, orderMap)).join('');
-      listEl.querySelectorAll('a.openBtn').forEach(a=>{a.addEventListener('click', (ev) => ev.stopPropagation());});
-      listEl.querySelectorAll('.routeBtn').forEach(btn=>{
-        btn.addEventListener('click', (ev)=>{
-          ev.stopPropagation(); ev.preventDefault();
-          if (btn.dataset.disabled === '1') { showToast('This location needs coordinates to be used in a route.'); return; }
-          const card = btn.closest('article.card');
-          const key = card?.dataset.key;
-          if (!key) return;
-          toggleRoute(key);
-          const added = isSelected(key);
-          const order = selectedKeys.indexOf(key) + 1;
-          btn.innerHTML = `${added ? 'Added' : 'Add to Route'}${added ? `<span class="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-lime-500/20 text-lime-200 text-[11px] px-1">${order}</span>` : ''}`;
-          btn.classList.toggle('ring-2', added);
-          btn.classList.toggle('ring-lime-500/70', added);
-        });
-      });
-      updateRouteBar();
-    }
-
-    function doSearch(){
-      const term=(q.value||'').trim();
-      if(!term){ render(locations, ''); return; }
-      const n=normalize(term);
-      const A=fuse.search(n.base).map(r=>r.item);
-      const B=fuse.search(n.vowelless).map(r=>r.item);
-      const seen=new Set(); const merged=[...A,...B].filter(x=>!seen.has(x)&&seen.add(x));
-      render(merged, term);
-    }
-
-    function buildChips(){
-      const freq = new Map();
-      for (const it of locations) freq.set(it.name, (freq.get(it.name)||0)+1);
-      const top = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([name])=>name);
-      const frag = top.map(n=>{
-        let h=0; for (let i=0;i<n.length;i++) h=(h*31+n.charCodeAt(i))>>>0; const hue=h%360;
-        const bg = `linear-gradient(180deg, hsl(${hue} 90% 60%), hsl(${(hue+30)%360} 85% 50%))`;
-        return `<button class="chip pressable text-sm rounded-xl px-3 py-1.5" data-chip="${escapeHtml(n)}" style="background:${bg}; color:#0B0F13; font-weight:600">${escapeHtml(n)}</button>`;
-      }).join(' ');
-      chipsEl.innerHTML = frag;
-      document.querySelectorAll('#chips [data-chip]').forEach(btn=>{
-        btn.addEventListener('click', () => { q.value = btn.getAttribute('data-chip'); doSearch(); if (document.activeElement === q) q.blur(); });
-      });
-    }
-
-    async function loadJson({bust=false} = {}){
-      try{
-        const url = bust ? `${JSON_URL}?t=${Date.now()}` : JSON_URL;
-        const res = await fetch(url, { cache:'no-store' });
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        locations = Array.isArray(data) ? data : (data.locations || []);
-        initFuse(); render(locations,''); buildChips();
-        const updated=(data.updated||'')?.trim?.()||''; const version=(data.version||'')?.trim?.()||'';
-        const meta=[updated?`Updated: ${updated}`:'', version?`• v${version}`:'', `• ${locations.length} locations`].filter(Boolean).join(' ');
-        metaEl.textContent=meta; aboutMeta.textContent=meta;
-      }catch(e){
-        metaEl.textContent='Failed to load locations.json';
-        listEl.innerHTML = `<div class="text-center text-rose-300 py-12">Could not load <span class="font-semibold">locations.json</span>.</div>`;
-      }
-    }
-
-    let debounce;
-    q.addEventListener('input', ()=>{ clearTimeout(debounce); debounce=setTimeout(doSearch,80); });
-    clearBtn.addEventListener('click', ()=>{ q.value=''; doSearch(); });
-    reloadBtn.addEventListener('click', ()=>loadJson({bust:true}));
-    routeBuildBtn.addEventListener('click', ()=>{ const url = buildRouteURL(); if (url) window.open(url, '_blank', 'noopener'); });
-    routeClearBtn.addEventListener('click', clearRoute);
+    document.getElementById('y').textContent = new Date().getFullYear();
 
     const installBtn = document.getElementById('installBtn');
-    const installHelp = document.getElementById('installHelp');
-    const installHelpBody = document.getElementById('installHelpBody');
     let deferredPrompt = null;
+
+    // Detect standalone
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    if (isStandalone) { installBtn.textContent = "Installed"; installBtn.disabled = true; }
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+    if (isStandalone) {
+      installBtn.textContent = 'Installed';
+      installBtn.disabled = true;
+      installBtn.classList.add('opacity-60','cursor-default');
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // Button stays visible; we only trigger prompt on click
+    });
+
     installBtn.addEventListener('click', async () => {
       if (installBtn.disabled) return;
       if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') { installBtn.textContent = "Installed"; installBtn.disabled = true; }
+        if (outcome === 'accepted') {
+          installBtn.textContent = 'Installed';
+          installBtn.disabled = true;
+          installBtn.classList.add('opacity-60','cursor-default');
+        }
         deferredPrompt = null;
       } else {
-        installHelpBody.innerHTML = `<p>Tip: Use your browser menu → <strong>Install app</strong>.</p>`;
-        installHelp.showModal();
+        // Fallback hint (Safari iOS or if prompt not available)
+        alert('Tip: use your browser menu and choose “Install app” to add it to your Home Screen.');
       }
     });
 
+    // Optional SW register (no error if missing)
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./service-worker.js');
+      navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
     }
-
-    loadJson();
-    updateRouteBar();
   </script>
 </body>
 </html>
